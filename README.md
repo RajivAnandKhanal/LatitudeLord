@@ -44,9 +44,9 @@ Make sure you have the following installed:
 
 - [Node.js](https://nodejs.org/) (v18+)
 - [npm](https://www.npmjs.com/)
-- [MongoDB](local instance or MongoDB Atlas)
-- [Expo CLI] (`npm install -g expo-cli`)
-- [Git]
+- MongoDB (local instance or MongoDB Atlas)
+- Expo CLI `npm install -g expo-cli`
+- Git
 
 ### 1. Clone the Repository
 
