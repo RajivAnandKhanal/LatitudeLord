@@ -1,11 +1,18 @@
+<<<<<<< HEAD
 # =========================
 # Node.js (Backend)
 # =========================
 node_modules/
+=======
+# Logs
+logs
+*.log
+>>>>>>> c049658 (initial commit: latitude lord react setup)
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+<<<<<<< HEAD
 
 # Environment variables
 .env
@@ -330,3 +337,22 @@ buck-out/
 .buckd/
 .buckversion
 .fakebuckversion
+=======
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+>>>>>>> c049658 (initial commit: latitude lord react setup)
