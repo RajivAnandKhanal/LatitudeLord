@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "PG sudip",
+            "database": "demo",
+            "username": "postgres",
+            "password": "hahaha",
+            "connectionTimeout": 30
+        }
+    ]
+}
