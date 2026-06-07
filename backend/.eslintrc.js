@@ -4,13 +4,20 @@ module.exports = {
     es2021: true,
     jest: true,
   },
-  extends: ["eslint:recommended"],
+  extends: ['eslint:recommended'],
   parserOptions: {
-    ecmaVersion: "latest",
-    sourceType: "module",
+    ecmaVersion: 'latest',
+    sourceType: 'module',
   },
   rules: {
-    "no-console": "warn",
-    "no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    'no-console': 'warn',
+    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
   },
 };
+
+// Configuration file for ESLint.
+//
+// ESLint checks code for:
+// Bugs
+// Bad practices
+// Style issues
