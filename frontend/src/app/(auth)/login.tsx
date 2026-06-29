@@ -1,139 +1,206 @@
-import { useState } from "react";
-
-import {
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
 import { router } from "expo-router";
+import { useState } from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import AuthScreen from "../../components/common/AuthScreen";
+import CustomButton from "../../components/common/CustomButton";
+import CustomInput from "../../components/common/CustomInput";
+import FormStatus from "../../components/common/FormStatus";
 import PageHeader from "../../components/common/PageHeader";
 
+import { useAuth } from "../../hooks/useAuth";
+import { mockUsers } from "../../mock/users";
 import { Colors } from "../../theme/colors";
+import { validateEmail, validateRequired } from "../../utils/validation";
+
+type FormStatusState = {
+  type: "success" | "error";
+  title: string;
+  message: string;
+};
 
 export default function LoginScreen() {
+  const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  function handleLogin() {
-    console.log({
-      email,
-      password,
-    });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<FormStatusState | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // later backend integration
+  async function handleLogin() {
+    const nextErrors: Record<string, string> = {};
+
+    if (!validateEmail(email)) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+
+    if (!validateRequired(password)) {
+      nextErrors.password = "Password is required.";
+    }
+
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setStatus({
+        type: "error",
+        title: "Check login details",
+        message: "Please fix the highlighted fields before continuing.",
+      });
+      return;
+    }
+
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const foundUser = mockUsers.find(
+        (item) =>
+          item.email.trim().toLowerCase() === email.trim().toLowerCase() &&
+          item.password === password,
+      );
+
+      if (!foundUser) {
+        setStatus({
+          type: "error",
+          title: "Login failed",
+          message: "Invalid email or password.",
+        });
+        return;
+      }
+
+      await login(foundUser);
+
+      setStatus({
+        type: "success",
+        title: "Welcome back",
+        message: "Redirecting to your dashboard.",
+      });
+
+      if (foundUser.role === "passenger") {
+        router.replace("/(passenger)/home");
+        return;
+      }
+
+      router.replace("/(driver)/dashboard");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <AuthScreen>
-      <PageHeader title="Login" />
-
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Welcome Back</Text>
-
-        <Text style={styles.heroDescription}>
-          Access your LatitudeLord account and continue tracking buses.
-        </Text>
-      </View>
+      <PageHeader title="Login" showBackButton />
 
       <View style={styles.card}>
-        <Text style={styles.label}>Email Address</Text>
+        <Text style={styles.heading}>Welcome Back</Text>
 
-        <TextInput
-          placeholder="Enter email"
-          placeholderTextColor="#94A3B8"
-          style={styles.input}
+        <Text style={styles.subheading}>
+          Login to continue using LatitudeLord
+        </Text>
+
+        {status && (
+          <FormStatus
+            type={status.type}
+            title={status.title}
+            message={status.message}
+          />
+        )}
+
+        <CustomInput
+          label="Email Address"
+          placeholder="name@example.com"
           value={email}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          textContentType="emailAddress"
+          error={errors.email}
           onChangeText={setEmail}
         />
 
-        <Text style={styles.label}>Password</Text>
-
-        <TextInput
-          placeholder="Enter password"
-          placeholderTextColor="#94A3B8"
-          style={styles.input}
+        <CustomInput
+          label="Password"
+          placeholder="Enter your password"
           secureTextEntry
           value={password}
+          textContentType="password"
+          returnKeyType="done"
+          error={errors.password}
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginText}>Login</Text>
+        <CustomButton
+          title="Login"
+          loading={loading}
+          disabled={loading}
+          onPress={handleLogin}
+        />
+
+        <TouchableOpacity
+          disabled={loading}
+          onPress={() => router.push("/(auth)/register-role")}
+        >
+          <Text style={styles.link}>Create Account</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/register-role")}>
-          <Text style={styles.registerText}>
-            Don't have an account? Create one
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.demoBox}>
+          <Text style={styles.demoTitle}>Demo Accounts</Text>
+
+          <Text style={styles.demoText}>passenger@latitudelord.com</Text>
+          <Text style={styles.demoText}>Password: Passenger123</Text>
+
+          <Text style={styles.demoText}>driver@latitudelord.com</Text>
+          <Text style={styles.demoText}>Password: Driver123</Text>
+        </View>
       </View>
     </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: {
+  card: {
+    backgroundColor: "#FFFFFF",
+    padding: 24,
+    borderRadius: 24,
+  },
+
+  heading: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: Colors.text,
+  },
+
+  subheading: {
+    color: Colors.textSecondary,
+    marginTop: 8,
     marginBottom: 24,
   },
 
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: "800",
-    color: Colors.text,
-  },
-
-  heroDescription: {
-    color: Colors.textSecondary,
-    marginTop: 8,
-    lineHeight: 24,
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 28,
-    padding: 24,
-  },
-
-  label: {
-    fontWeight: "600",
-    color: Colors.text,
-    marginBottom: 8,
-    marginTop: 14,
-  },
-
-  input: {
-    height: 58,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#F8FAFC",
-  },
-
-  loginButton: {
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 24,
-  },
-
-  loginText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  registerText: {
+  link: {
     textAlign: "center",
-    marginTop: 18,
+    marginTop: 20,
     color: Colors.primary,
     fontWeight: "600",
+  },
+
+  demoBox: {
+    marginTop: 24,
+    backgroundColor: "#EFF6FF",
+    padding: 16,
+    borderRadius: 16,
+  },
+
+  demoTitle: {
+    fontWeight: "700",
+    marginBottom: 10,
+    color: Colors.text,
+  },
+
+  demoText: {
+    marginBottom: 4,
+    color: Colors.textSecondary,
   },
 });

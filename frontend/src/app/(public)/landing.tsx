@@ -27,7 +27,7 @@ export default function LandingScreen() {
 
       <LinearGradient colors={["#2563EB", "#3B82F6"]} style={styles.hero}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>Nepal Smart Transport Platform</Text>
+          <Text style={styles.badgeText}>Nepal Smart Bus Tracking System</Text>
         </View>
 
         <Text style={styles.quote}>
@@ -68,7 +68,7 @@ export default function LandingScreen() {
 
       <View style={styles.gridRow}>
         <FeatureCard icon="map" title="Route Tracking" />
-        <FeatureCard icon="chatbubbles" title="Chat Staff" />
+        <FeatureCard icon="chatbubbles" title="Chat Bot" />
       </View>
 
       <View style={styles.gridRow}>
@@ -97,11 +97,9 @@ export default function LandingScreen() {
 
         <Text style={styles.aboutDescription}>
           LatitudeLord helps passengers discover nearby buses, estimate arrival
-          times, communicate with staff and travel with confidence.
+          times and travel with confidence.
         </Text>
       </View>
-
-      <Text style={styles.version}>LatitudeLord v1.0.0</Text>
     </ScrollView>
   );
 }

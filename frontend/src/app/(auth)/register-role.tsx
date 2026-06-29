@@ -11,33 +11,26 @@ import { Colors } from "../../theme/colors";
 export default function RegisterRoleScreen() {
   return (
     <AuthScreen>
-      <PageHeader title="Create Account" />
+      <PageHeader title="Create Account" showBackButton />
 
-      <Text style={styles.title}>Choose Your Role</Text>
+      <Text style={styles.title}>Choose Account Type</Text>
 
       <Text style={styles.subtitle}>
-        Select the account type that best describes how you'll use LatitudeLord.
+        Select how you want to use LatitudeLord.
       </Text>
 
       <RoleCard
         title="Passenger"
-        description="Track buses, estimate arrivals and chat with staff."
+        description="Track nearby buses, view ETA, chat and get support."
         icon="person"
-        onPress={() => router.push("/register-passenger")}
+        onPress={() => router.push("/(auth)/register-passenger")}
       />
 
       <RoleCard
-        title="Bus Owner"
-        description="Manage buses, drivers and staff information."
+        title="Driver / Bus Operator"
+        description="Register your bus, route and staff details."
         icon="bus"
-        onPress={() => router.push("/register-owner")}
-      />
-
-      <RoleCard
-        title="Bus Staff"
-        description="Assist passengers and communicate during journeys."
-        icon="people"
-        onPress={() => router.push("/register-staff")}
+        onPress={() => router.push("/(auth)/register-driver")}
       />
     </AuthScreen>
   );

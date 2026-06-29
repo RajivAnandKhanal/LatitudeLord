@@ -16,7 +16,7 @@ export default function ImagePickerField({ label, onImageSelected }: Props) {
 
   async function pickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ["images"],
       quality: 0.8,
     });
 

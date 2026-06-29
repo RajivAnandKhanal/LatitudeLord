@@ -1,4 +1,4 @@
-<PageHeader title="Bus Details" />;
+import { router, useLocalSearchParams } from "expo-router";
 import {
   ScrollView,
   StyleSheet,
@@ -7,49 +7,50 @@ import {
   View,
 } from "react-native";
 
-import PageHeader from "@/src/components/common/PageHeader";
+import PageHeader from "../../components/common/PageHeader";
+import { buses } from "../../mock/buses";
 import { Colors } from "../../theme/colors";
 
 export default function BusDetailsScreen() {
+  const { busId } = useLocalSearchParams();
+
+  const bus = buses.find((item) => item.id === busId) ?? buses[0];
+
+  const eta = bus.mlEtaMinutes ?? bus.etaMinutes;
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <View style={styles.content}>
-        <Text style={styles.title}>Ba 3 Kha 2245</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <PageHeader title="Bus Details" subtitle={bus.routeName} showBackButton />
 
-        <Text style={styles.route}>Kalanki → Koteshwor</Text>
+      <View style={styles.hero}>
+        <Text style={styles.title}>{bus.busNumber}</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>GPS ETA</Text>
+        <Text style={styles.route}>{bus.routeName}</Text>
 
-          <Text style={styles.value}>4 Minutes</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.label}>ML ETA</Text>
-
-          <Text style={styles.value}>5 Minutes</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.label}>Driver</Text>
-
-          <Text style={styles.value}>Ram Sharma</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.label}>Bus Staff</Text>
-
-          <Text style={styles.value}>Sita Thapa</Text>
-        </View>
-
-        <TouchableOpacity style={styles.primary}>
-          <Text style={styles.primaryText}>Track Journey</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondary}>
-          <Text style={styles.secondaryText}>Chat With Staff</Text>
-        </TouchableOpacity>
+        <Text style={styles.plate}>{bus.plateNumber}</Text>
       </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Driver</Text>
+        <Text style={styles.value}>{bus.driverName}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>Bus Staff</Text>
+        <Text style={styles.value}>{bus.staffName}</Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.label}>ETA</Text>
+        <Text style={styles.value}>{eta} Minutes</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.primary}
+        onPress={() => router.push("/(passenger)/map")}
+      >
+        <Text style={styles.primaryText}>Track Bus</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -65,21 +66,31 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
 
+  hero: {
+    backgroundColor: "#DBEAFE",
+    padding: 20,
+    borderRadius: 18,
+    marginBottom: 15,
+  },
+
   title: {
-    fontSize: 32,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "900",
   },
 
   route: {
-    color: Colors.textSecondary,
-    marginBottom: 24,
+    marginTop: 8,
+  },
+
+  plate: {
+    marginTop: 6,
   },
 
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 14,
+    backgroundColor: "#FFF",
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 12,
   },
 
   label: {
@@ -87,35 +98,21 @@ const styles = StyleSheet.create({
   },
 
   value: {
-    fontWeight: "700",
-    fontSize: 18,
-    marginTop: 4,
+    fontWeight: "800",
+    marginTop: 5,
   },
 
   primary: {
-    height: 58,
     backgroundColor: Colors.primary,
-    borderRadius: 18,
+    height: 54,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 20,
-  },
-
-  secondary: {
-    height: 58,
-    backgroundColor: "#E2E8F0",
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 12,
+    borderRadius: 16,
+    marginTop: 10,
   },
 
   primaryText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-
-  secondaryText: {
-    fontWeight: "700",
+    color: "#FFF",
+    fontWeight: "800",
   },
 });
