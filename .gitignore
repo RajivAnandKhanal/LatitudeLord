@@ -330,3 +330,7 @@ buck-out/
 .buckd/
 .buckversion
 .fakebuckversion
+
+*.zip
+
+testing_internal_code/

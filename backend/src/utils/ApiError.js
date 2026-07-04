@@ -1,12 +1,14 @@
 class ApiError extends Error {
-  /**
-   * @param {number}   statusCode
-   * @param {string}   message
-   * @param {Array}    errors     - optional validation error details
-   * @param {string}   stack
-   */
+  //  @param {number}   statusCode
+  //  @param {string}   message
+  //  @param {Array}    errors     - optional validation error details
+  // @param {string}   stack
+  //
   constructor(statusCode, message = 'Something went wrong', errors = [], stack = '') {
     super(message);
+
+    // everything inside bracket i.e constructor(height) should be in right side
+    // this.ht = height; -> example
     this.statusCode = statusCode;
     this.success = false;
     this.errors = errors;
