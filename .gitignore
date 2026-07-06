@@ -332,5 +332,3 @@ buck-out/
 .fakebuckversion
 
 *.zip
-
-testing_internal_code/

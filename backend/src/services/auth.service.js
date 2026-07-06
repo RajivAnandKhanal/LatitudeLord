@@ -1,7 +1,11 @@
 const User = require('../models/User.model');
 const Driver = require('../models/Driver.model');
 const ApiError = require('../utils/ApiError');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/tokenUtils');
+const {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} = require('../utils/tokenUtils');
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
