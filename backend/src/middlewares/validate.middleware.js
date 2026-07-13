@@ -7,7 +7,7 @@ const ApiError = require('../utils/ApiError');
  */
 const validate = (schema) => (req, _res, next) => {
   const { error, value } = schema.validate(req.body, {
-    abortEarly: false,  // collect all errors
+    abortEarly: false, // collect all errors
     stripUnknown: true, // remove unknown keys
   });
 

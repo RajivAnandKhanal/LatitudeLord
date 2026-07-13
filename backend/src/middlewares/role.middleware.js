@@ -6,12 +6,14 @@ const ApiError = require('../utils/ApiError');
  *
  * Usage: router.get('/route', verifyToken, allowRoles('driver', 'staff'), handler)
  */
-const allowRoles = (...roles) => (req, _res, next) => {
-  if (!req.user || !roles.includes(req.user.role)) {
-    return next(new ApiError(403, `Access denied. Requires role: ${roles.join(' or ')}`));
-  }
-  next();
-};
+const allowRoles =
+  (...roles) =>
+  (req, _res, next) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      return next(new ApiError(403, `Access denied. Requires role: ${roles.join(' or ')}`));
+    }
+    next();
+  };
 
 // Convenience guards
 const isPassenger = allowRoles('passenger');
