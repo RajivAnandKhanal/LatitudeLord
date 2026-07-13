@@ -6,6 +6,7 @@ const morgan = require('morgan');
 const rootRouter = require('./src/routes/index');
 const errorHandler = require('./src/middlewares/errorHandler.middleware');
 const notFound = require('./src/middlewares/notFound.middleware');
+const { apiLimiter } = require('./src/middlewares/rateLimiter.middleware');
 
 const app = express();
 
@@ -21,7 +22,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // ── Routes ─────────────────────────────────────────────────────────────────────
-app.use('/api/v1', rootRouter);
+app.use('/api/v1', apiLimiter, rootRouter);
 
 // ── Health check ───────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
