@@ -39,4 +39,36 @@ const verifyToken = asyncHandler(async (req, _res, next) => {
   next();
 });
 
-module.exports = { verifyToken };
+/**
+ * attachUserIfPresent — like verifyToken, but never rejects the request.
+ * Used on public routes that behave slightly differently for logged-in
+ * users, e.g. GET /location/:busId returning an ML-enhanced ETA instead of
+ * a plain GPS estimate once a passenger is authenticated.
+ */
+const attachUserIfPresent = asyncHandler(async (req, _res, next) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    req.user = null;
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  let decoded;
+  try {
+    decoded = verifyAccessToken(token);
+  } catch {
+    req.user = null;
+    return next();
+  }
+
+  const user =
+    decoded.role === 'passenger'
+      ? await User.findById(decoded._id)
+      : await Driver.findById(decoded._id);
+
+  req.user = user && user.isActive ? user : null;
+  next();
+});
+
+module.exports = { verifyToken, attachUserIfPresent };

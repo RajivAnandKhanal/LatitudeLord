@@ -1,6 +1,7 @@
 const { initSocket } = require('../config/socket');
 const { registerBusSocket } = require('./bus.socket');
 const { registerLocationSocket } = require('./location.socket');
+const { registerChatSocket } = require('./chat.socket');
 const logger = require('../config/logger');
 
 /**
@@ -13,6 +14,7 @@ const setupSockets = (httpServer) => {
   io.on('connection', (socket) => {
     registerBusSocket(io, socket);
     registerLocationSocket(io, socket);
+    registerChatSocket(io, socket);
 
     socket.on('error', (err) => {
       logger.error(`Socket error (${socket.id}): ${err.message}`);

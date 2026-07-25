@@ -5,6 +5,7 @@ const connectDB = require('./src/config/db');
 const logger = require('./src/config/logger');
 const { setupSockets } = require('./src/sockets/index');
 const { startStaleLocationJob } = require('./src/jobs/staleLocation.job');
+const { startMlExportJob } = require('./src/jobs/mlDataExport.job');
 
 const PORT = process.env.PORT || 5000;
 
@@ -16,6 +17,7 @@ const server = http.createServer(app);
 
   setupSockets(server);
   startStaleLocationJob();
+  startMlExportJob();
 
   server.listen(PORT, () => {
     logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV}]`);
