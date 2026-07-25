@@ -17,5 +17,8 @@ module.exports = {
   // How often the stale-location sweep job runs.
   LOCATION_SWEEP_CRON: '*/30 * * * * *', // every 30s
 
+  // When the nightly journey → ML pipeline export job runs.
+  ML_EXPORT_CRON: '0 2 * * *', // 2:00 AM daily
+
   DAYS_OF_WEEK: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
 };

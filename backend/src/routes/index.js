@@ -5,6 +5,8 @@ const authRoutes = require('./auth.routes');
 const busRoutes = require('./bus.routes');
 const routeRoutes = require('./route.routes');
 const locationRoutes = require('./location.routes');
+const chatRoutes = require('./chat.routes');
+const journeyRoutes = require('./journey.routes');
 
 // Mount sub-routers
 // Week 1
@@ -18,10 +20,10 @@ router.use('/routes', routeRoutes);
 router.use('/location', locationRoutes);
 
 // Week 4
-// router.use('/chat', chatRoutes);
+router.use('/chat', chatRoutes);
 
 // Week 5
-// router.use('/journeys', journeyRoutes);
+router.use('/journeys', journeyRoutes);
 
 // Week 6
 // router.use('/feedback', feedbackRoutes);

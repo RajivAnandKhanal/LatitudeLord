@@ -21,9 +21,13 @@ const updateLocation = asyncHandler(async (req, res) => {
 });
 
 // ── GET /api/v1/location/:busId ─────────────────────────────────────────────────
-// Public — passengers track a specific bus.
+// Public — passengers track a specific bus. Logged-in passengers (req.user set
+// by attachUserIfPresent) get an ML-enhanced ETA when the ML service has data;
+// everyone else gets the GPS-only (haversine) estimate.
 const getLocation = asyncHandler(async (req, res) => {
-  const location = await locationService.getLocation(req.params.busId);
+  const location = await locationService.getLocation(req.params.busId, {
+    useMl: Boolean(req.user),
+  });
 
   return res.status(200).json(new ApiResponse(200, location, 'Location fetched'));
 });
