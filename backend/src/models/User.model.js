@@ -32,6 +32,12 @@ const userSchema = new mongoose.Schema(
       type: String, // Cloudinary URL
       default: null,
     },
+    // Firebase Cloud Messaging device token — set via
+    // POST /notifications/register-token, used by notification.service.js.
+    fcmToken: {
+      type: String,
+      default: null,
+    },
     role: {
       type: String,
       enum: ['passenger'],

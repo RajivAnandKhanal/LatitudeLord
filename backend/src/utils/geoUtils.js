@@ -5,10 +5,9 @@ const EARTH_RADIUS_KM = 6371;
 
 const toRad = (deg) => (deg * Math.PI) / 180;
 
-/**
- * Haversine great-circle distance between two lat/lng points.
- * @returns {number} distance in kilometers
- */
+//  Haversine great-circle distance between two lat/lng points.
+//   @returns {number} distance in kilometers
+
 const getDistanceKm = (from, to) => {
   const dLat = toRad(to.lat - from.lat);
   const dLng = toRad(to.lng - from.lng);
