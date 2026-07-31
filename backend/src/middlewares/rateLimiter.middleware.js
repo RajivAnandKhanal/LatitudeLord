@@ -38,4 +38,16 @@ const locationLimiter = rateLimit({
   handler,
 });
 
-module.exports = { apiLimiter, authLimiter, locationLimiter };
+// ── Feedback limiter ─────────────────────────────────────────────────────────────
+// Feedback is anonymous and has no auth guard, which makes it an easy spam
+// target. Tighter than the general limiter, but loose enough that a real
+// person filing a couple of honest bug reports never notices it.
+const feedbackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler,
+});
+
+module.exports = { apiLimiter, authLimiter, locationLimiter, feedbackLimiter };

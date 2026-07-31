@@ -2,9 +2,9 @@ const ApiError = require('../utils/ApiError');
 
 /**
  * Returns a middleware that validates req.body against a Joi schema.
- *
- * @param {import('joi').Schema} schema
- */
+ * */
+//  @param {import('joi').Schema} schema
+
 const validate = (schema) => (req, _res, next) => {
   const { error, value } = schema.validate(req.body, {
     abortEarly: false, // collect all errors

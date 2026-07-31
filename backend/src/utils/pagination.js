@@ -18,11 +18,12 @@ const getPagination = (query = {}) => {
 
 /**
  * Wraps a page of docs + total count into a consistent paginated payload.
- *
- * @param {Array} docs
- * @param {number} total
- * @param {{ page: number, limit: number }} param2
- */
+ *  */
+//  *
+//  * @param {Array} docs
+//  * @param {number} total
+//  * @param {{ page: number, limit: number }} param2
+//
 const buildPaginatedResult = (docs, total, { page, limit }) => ({
   results: docs,
   pagination: {
