@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
 import { useAuth } from "../../hooks/useAuth";
-import { findBusByPlate } from "../../mock/buses";
+import { useBusDetails } from "../../hooks/useBusDetails";
 import { Colors } from "../../theme/colors";
 import { DayOfWeek, DriverUser } from "../../types/auth";
 
@@ -22,7 +22,7 @@ export default function DriverRoutesScreen() {
   const { user } = useAuth();
   const driver = user?.role === "driver" ? (user as DriverUser) : null;
   const driverBus = driver?.buses?.[0];
-  const liveBus = driverBus ? findBusByPlate(driverBus.numberPlate) : undefined;
+  const { bus: liveBus } = useBusDetails(driverBus?.id);
 
   const todayName = dayOrder[new Date().getDay()];
   const todaysJourney = driverBus?.schedule.find(

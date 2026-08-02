@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -10,23 +11,100 @@ import {
 } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import { useAuth } from "../../hooks/useAuth";
+import * as routeService from "../../services/routeService";
+import { BackendDay, BackendDaySchedule } from "../../services/routeService";
+import { DEFAULT_LOCATION } from "../../services/locationService";
 import { Colors } from "../../theme/colors";
+import { DriverUser } from "../../types/auth";
+
+const WEEKDAYS: BackendDay[] = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 export default function AddJourneyScreen() {
-  const [route, setRoute] = useState("");
-  const [busNumber, setBusNumber] = useState("");
-  const [date, setDate] = useState("");
-  const [departure, setDeparture] = useState("");
-  const [arrival, setArrival] = useState("");
+  const { user } = useAuth();
+  const driver = user?.role === "driver" ? (user as DriverUser) : null;
+  const bus = driver?.buses?.[0];
 
-  function saveJourney() {
-    Alert.alert("Success", "Journey has been scheduled.");
-    setRoute("");
-    setBusNumber("");
-    setDate("");
-    setDeparture("");
-    setArrival("");
+  const [route, setRoute] = useState("");
+  const [date, setDate] = useState("");
+
+  const [schedule, setSchedule] = useState<BackendDaySchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!bus) {
+      setLoading(false);
+      return;
+    }
+    routeService
+      .getScheduleByBus(bus.id)
+      .then((r) => setSchedule(r.schedule))
+      .catch(() => setSchedule([]))
+      .finally(() => setLoading(false));
+  }, [bus?.id]);
+
+  async function saveJourney() {
+    if (!bus) {
+      Alert.alert("No bus registered", "Register a bus from your profile first.");
+      return;
+    }
+    if (!route.trim() || !date.trim()) {
+      Alert.alert("Missing details", "Enter a route and a date.");
+      return;
+    }
+
+    const parsedDate = new Date(date);
+    if (Number.isNaN(parsedDate.getTime())) {
+      Alert.alert("Invalid date", "Use the format YYYY-MM-DD.");
+      return;
+    }
+
+    // Backend routes are a recurring weekly schedule (day → stations), not
+    // one-off dated journeys, so this saves the given date's weekday.
+    const day = WEEKDAYS[(parsedDate.getDay() + 6) % 7];
+    const [from, to] = route.split(/ to |→/i).map((s) => s.trim());
+
+    const newEntry: BackendDaySchedule = {
+      day,
+      stations: [
+        { name: from || route.trim(), ...DEFAULT_LOCATION },
+        {
+          name: to || "Destination",
+          lat: DEFAULT_LOCATION.latitude + 0.01,
+          lng: DEFAULT_LOCATION.longitude + 0.01,
+        },
+      ],
+    };
+
+    const merged = [...schedule.filter((entry) => entry.day !== day), newEntry];
+
+    setSaving(true);
+    try {
+      const result = await routeService.setSchedule(bus.id, merged);
+      setSchedule(result.schedule);
+      Alert.alert("Success", `Journey scheduled for ${day}.`);
+      setRoute("");
+      setDate("");
+    } catch (err) {
+      Alert.alert(
+        "Couldn't save journey",
+        err instanceof Error ? err.message : "Please try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
+
+  const scheduleByDay = new Map(schedule.map((entry) => [entry.day, entry]));
 
   return (
     <ScrollView style={styles.container}>
@@ -42,15 +120,7 @@ export default function AddJourneyScreen() {
           <TextInput
             value={route}
             onChangeText={setRoute}
-            placeholder="Ratnapark → Koteshwor"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Bus Number</Text>
-          <TextInput
-            value={busNumber}
-            onChangeText={setBusNumber}
-            placeholder="BA 3 KHA 4567"
+            placeholder="Ratnapark to Koteshwor"
             style={styles.input}
           />
 
@@ -62,53 +132,47 @@ export default function AddJourneyScreen() {
             style={styles.input}
           />
 
-          <Text style={styles.label}>Departure Time</Text>
-          <TextInput
-            value={departure}
-            onChangeText={setDeparture}
-            placeholder="07:30"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Arrival Time</Text>
-          <TextInput
-            value={arrival}
-            onChangeText={setArrival}
-            placeholder="08:45"
-            style={styles.input}
-          />
-
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, saving && styles.buttonDisabled]}
+            disabled={saving}
             onPress={saveJourney}
           >
-            <Text style={styles.buttonText}>
-              Save Journey
-            </Text>
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>
+                Save Journey
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>
-            Next 7 Days Planning
+            This Week's Schedule
           </Text>
 
-          {[
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday",
-          ].map((day) => (
-            <View key={day} style={styles.dayRow}>
-              <Text>{day}</Text>
-              <Text style={styles.pending}>
-                No Journey Added
-              </Text>
-            </View>
-          ))}
+          {loading ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : (
+            WEEKDAYS.map((day) => {
+              const entry = scheduleByDay.get(day);
+              return (
+                <View key={day} style={styles.dayRow}>
+                  <Text>{day}</Text>
+                  {entry ? (
+                    <Text style={styles.scheduled}>
+                      {entry.stations[0]?.name} → {entry.stations[entry.stations.length - 1]?.name}
+                    </Text>
+                  ) : (
+                    <Text style={styles.pending}>
+                      No Journey Added
+                    </Text>
+                  )}
+                </View>
+              );
+            })
+          )}
         </View>
       </View>
     </ScrollView>
@@ -147,6 +211,9 @@ const styles = StyleSheet.create({
     justifyContent:"center",
     alignItems:"center"
   },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
   buttonText:{
     color:"#fff",
     fontWeight:"800",
@@ -175,5 +242,9 @@ const styles = StyleSheet.create({
   pending:{
     color:"#EF4444",
     fontWeight:"600"
-  }
+  },
+  scheduled: {
+    color: "#15803D",
+    fontWeight: "700",
+  },
 });

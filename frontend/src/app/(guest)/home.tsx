@@ -13,10 +13,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AppHeader from "../../components/common/AppHeader";
 import AppLogo from "../../components/common/AppLogo";
 import BusCard from "../../components/common/BusCard";
-import { Bus, buses } from "../../mock/buses";
+import { Bus } from "../../mock/buses";
+import { useBusesList } from "../../hooks/useBusesList";
 import { Colors } from "../../theme/colors";
 
 export default function GuestHomeScreen() {
+  const { buses, loading } = useBusesList();
   const [station, setStation] = useState("");
   const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
 
@@ -30,7 +32,7 @@ export default function GuestHomeScreen() {
     return buses.filter((bus) =>
       bus.routeStations.some((item) => item.toLowerCase().includes(query)),
     );
-  }, [station]);
+  }, [station, buses]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -81,11 +83,14 @@ export default function GuestHomeScreen() {
 
         <Text style={styles.sectionTitle}>Available Buses</Text>
 
-        {filteredBuses.map((bus) => (
-          <BusCard key={bus.id} bus={bus} onPress={() => setSelectedBus(bus)} />
-        ))}
+        {loading && <Text style={styles.empty}>Loading buses…</Text>}
 
-        {filteredBuses.length === 0 && (
+        {!loading &&
+          filteredBuses.map((bus) => (
+            <BusCard key={bus.id} bus={bus} onPress={() => setSelectedBus(bus)} />
+          ))}
+
+        {!loading && filteredBuses.length === 0 && (
           <Text style={styles.empty}>No buses found for this station.</Text>
         )}
       </ScrollView>

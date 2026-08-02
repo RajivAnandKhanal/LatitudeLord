@@ -18,14 +18,16 @@ import MapBusCard from "../../components/common/MapBusCard";
 
 import { useJourney } from "../../hooks/useJourney";
 import { useLiveLocation } from "../../hooks/useLiveLocation";
+import { useBusesList } from "../../hooks/useBusesList";
 
-import { Bus, buses } from "../../mock/buses";
+import { Bus } from "../../mock/buses";
 
 import { Colors } from "../../theme/colors";
 import { calculateDistance } from "../../utils/location";
 
 export default function PassengerMapScreen() {
   const { location, loading } = useLiveLocation();
+  const { buses, loading: busesLoading } = useBusesList();
 
   const { boardBus } = useJourney();
 
@@ -52,7 +54,7 @@ export default function PassengerMapScreen() {
         stationMatches
       );
     });
-  }, [search]);
+  }, [search, buses]);
 
   const nearestBus = useMemo(() => {
     if (filteredBuses.length === 0) {
@@ -83,7 +85,7 @@ export default function PassengerMapScreen() {
 
   const activeBus = selectedBus ?? nearestBus;
 
-  if (loading) {
+  if (loading || busesLoading) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={Colors.primary} />

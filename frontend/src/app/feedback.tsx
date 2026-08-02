@@ -4,22 +4,29 @@ import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import CustomButton from "../components/common/CustomButton";
 import CustomInput from "../components/common/CustomInput";
 import PageHeader from "../components/common/PageHeader";
-import { useAuth } from "../hooks/useAuth";
+import * as feedbackService from "../services/feedbackService";
 import { Colors } from "../theme/colors";
 
 export default function FeedbackScreen() {
-  const { user } = useAuth();
   const [feedback, setFeedback] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit() {
-    const payload = {
-      message: feedback,
-      anonymous: true,
-      sourceRole: user?.role ?? "guest",
-    };
+  async function handleSubmit() {
+    if (!feedback.trim()) return;
 
-    Alert.alert("Ready For Backend", JSON.stringify(payload, null, 2));
-    setFeedback("");
+    setSubmitting(true);
+    try {
+      await feedbackService.submitFeedback(feedback.trim());
+      Alert.alert("Thank you!", "Your feedback was submitted anonymously.");
+      setFeedback("");
+    } catch (err) {
+      Alert.alert(
+        "Couldn't submit feedback",
+        err instanceof Error ? err.message : "Please try again in a moment.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -44,7 +51,7 @@ export default function FeedbackScreen() {
           onChangeText={setFeedback}
         />
 
-        <CustomButton title="Submit Feedback" onPress={handleSubmit} />
+        <CustomButton title="Submit Feedback" loading={submitting} disabled={submitting} onPress={handleSubmit} />
       </View>
     </ScrollView>
   );

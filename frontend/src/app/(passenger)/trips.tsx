@@ -1,42 +1,46 @@
 import { Ionicons } from "@expo/vector-icons";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import * as journeyService from "../../services/journeyService";
+import { BackendJourney } from "../../services/journeyService";
+import * as busService from "../../services/busService";
 import { Colors } from "../../theme/colors";
 
-const trips = [
-  {
-    id: "1",
-    busNumber: "BA-12-KHA-1234",
-    route: "Koteshwor → Ratnapark",
-    fare: 25,
-    date: "24 Jun 2026",
-    status: "Completed",
-  },
-  {
-    id: "2",
-    busNumber: "BA-14-KHA-4587",
-    route: "Kalanki → New Bus Park",
-    fare: 30,
-    date: "23 Jun 2026",
-    status: "Completed",
-  },
-  {
-    id: "3",
-    busNumber: "BA-10-KHA-8899",
-    route: "Bhaktapur → Koteshwor",
-    fare: 20,
-    date: "22 Jun 2026",
-    status: "Completed",
-  },
-];
+type TripRow = {
+  id: string;
+  busNumber: string;
+  status: string;
+  date: string;
+  distanceKm: number | null;
+  durationMinutes: number | null;
+};
 
 export default function TripsScreen() {
+  const [trips, setTrips] = useState<TripRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const journeys = await journeyService.getMyJourneys();
+        const rows = await Promise.all(journeys.map(toTripRow));
+        if (!cancelled) setTrips(rows);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const totalDistance = trips.reduce((sum, trip) => sum + (trip.distanceKm ?? 0), 0);
+
   return (
     <ScrollView
       style={styles.container}
@@ -63,11 +67,11 @@ export default function TripsScreen() {
 
         <View style={styles.summaryItem}>
           <Text style={styles.summaryValue}>
-            Rs. {trips.reduce((sum, trip) => sum + trip.fare, 0)}
+            {totalDistance.toFixed(1)} km
           </Text>
 
           <Text style={styles.summaryLabel}>
-            Total Spent
+            Total Distance
           </Text>
         </View>
       </View>
@@ -75,6 +79,14 @@ export default function TripsScreen() {
       <Text style={styles.sectionTitle}>
         Recent Journeys
       </Text>
+
+      {loading && <ActivityIndicator color={Colors.primary} style={{ marginTop: 20 }} />}
+
+      {!loading && trips.length === 0 && (
+        <Text style={styles.emptyText}>
+          No journeys yet — board a bus from the live map to start one.
+        </Text>
+      )}
 
       {trips.map((trip) => (
         <View
@@ -94,20 +106,26 @@ export default function TripsScreen() {
               <Text style={styles.busNumber}>
                 {trip.busNumber}
               </Text>
-
-              <Text style={styles.route}>
-                {trip.route}
-              </Text>
             </View>
           </View>
 
           <View style={styles.infoRow}>
             <Text style={styles.label}>
-              Fare Paid
+              Distance
             </Text>
 
             <Text style={styles.value}>
-              Rs. {trip.fare}
+              {trip.distanceKm != null ? `${trip.distanceKm.toFixed(1)} km` : "—"}
+            </Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>
+              Duration
+            </Text>
+
+            <Text style={styles.value}>
+              {trip.durationMinutes != null ? `${Math.round(trip.durationMinutes)} min` : "—"}
             </Text>
           </View>
 
@@ -136,6 +154,19 @@ export default function TripsScreen() {
       ))}
     </ScrollView>
   );
+}
+
+async function toTripRow(journey: BackendJourney): Promise<TripRow> {
+  const bus = await busService.getBusById(journey.bus).catch(() => null);
+
+  return {
+    id: journey._id,
+    busNumber: bus ? `${bus.busNumber} (${bus.plateNumber})` : journey.bus,
+    status: journey.status.charAt(0).toUpperCase() + journey.status.slice(1),
+    date: new Date(journey.startedAt).toLocaleDateString(),
+    distanceKm: journey.distanceKm,
+    durationMinutes: journey.durationMinutes,
+  };
 }
 
 const styles = StyleSheet.create({
@@ -189,6 +220,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: Colors.text,
     marginBottom: 14,
+  },
+
+  emptyText: {
+    color: Colors.textSecondary,
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 20,
   },
 
   tripCard: {

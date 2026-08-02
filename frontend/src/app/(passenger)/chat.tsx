@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRef, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -12,68 +14,89 @@ import {
 } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import { useAuth } from "../../hooks/useAuth";
+import { useJourney } from "../../hooks/useJourney";
+import * as chatService from "../../services/chatService";
+import { BackendChatMessage } from "../../services/chatService";
+import { connectSocket } from "../../services/socket";
 import { Colors } from "../../theme/colors";
-import { getBotReply } from "../../utils/busBot";
-
-type Message = {
-  id: string;
-  from: "user" | "bot";
-  text: string;
-};
-
-const suggestedPrompts = [
-  "Where is Bus 12?",
-  "Buses near me",
-  "Bus 21 ETA",
-  "Show all routes",
-];
 
 export default function PassengerChatScreen() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      from: "bot",
-      text: "Hi! I'm your LatitudeLord assistant. Ask me about any bus, route, or station and I'll help you find it.",
-    },
-  ]);
+  const { user } = useAuth();
+  const { selectedBus } = useJourney();
 
+  const [messages, setMessages] = useState<BackendChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [botTyping, setBotTyping] = useState(false);
-  const listRef = useRef<FlatList<Message>>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const listRef = useRef<FlatList<BackendChatMessage>>(null);
 
-  function sendMessage(text: string) {
-    const trimmed = text.trim();
+  useEffect(() => {
+    if (!selectedBus) {
+      setLoading(false);
+      return;
+    }
 
-    if (!trimmed) return;
+    let cancelled = false;
 
-    const userMessage: Message = {
-      id: `u-${Date.now()}`,
-      from: "user",
-      text: trimmed,
-    };
+    (async () => {
+      try {
+        const history = await chatService.getMessages(selectedBus.id);
+        if (!cancelled) setMessages(history);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setBotTyping(true);
-
-    setTimeout(() => {
-      const botMessage: Message = {
-        id: `b-${Date.now()}`,
-        from: "bot",
-        text: getBotReply(trimmed),
-      };
-
-      setMessages((prev) => [...prev, botMessage]);
-      setBotTyping(false);
-
-      requestAnimationFrame(() => {
-        listRef.current?.scrollToEnd({ animated: true });
-      });
-    }, 500);
-
-    requestAnimationFrame(() => {
-      listRef.current?.scrollToEnd({ animated: true });
+    connectSocket().then(() => {
+      if (!cancelled) chatService.joinChatRoom(selectedBus.id);
     });
+
+    const unsubscribe = chatService.onChatMessage((message) => {
+      if (message.bus !== selectedBus.id) return;
+      setMessages((prev) => [...prev, message]);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    });
+
+    return () => {
+      cancelled = true;
+      chatService.leaveChatRoom(selectedBus.id);
+      unsubscribe();
+    };
+  }, [selectedBus?.id]);
+
+  async function sendMessage(text: string) {
+    const trimmed = text.trim();
+    if (!trimmed || !selectedBus) return;
+
+    setInput("");
+    setSending(true);
+    try {
+      const ack = await chatService.sendChatMessage(selectedBus.id, trimmed);
+      if (!ack.success) {
+        // Socket path failed (e.g. not connected yet) — fall back to REST.
+        const message = await chatService.sendMessageRest(selectedBus.id, trimmed);
+        setMessages((prev) => [...prev, message]);
+      }
+    } finally {
+      setSending(false);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+    }
+  }
+
+  if (!selectedBus) {
+    return (
+      <View style={styles.emptyState}>
+        <PageHeader title="Bus Chat" subtitle="Chat with bus staff" showBackButton />
+        <Ionicons name="chatbubbles-outline" size={48} color={Colors.textSecondary} />
+        <Text style={styles.emptyText}>
+          Board a bus from the live map first — chat opens once you've selected a bus.
+        </Text>
+        <TouchableOpacity style={styles.emptyButton} onPress={() => router.push("/(passenger)/map")}>
+          <Text style={styles.emptyButtonText}>Open Live Map</Text>
+        </TouchableOpacity>
+      </View>
+    );
   }
 
   return (
@@ -82,84 +105,61 @@ export default function PassengerChatScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.headerWrap}>
-        <PageHeader title="Bus Assistant" subtitle="Ask about any bus or route" />
+        <PageHeader title={`Chat • ${selectedBus.busNumber}`} subtitle="Bus staff" showBackButton />
       </View>
 
-      <FlatList
-        ref={listRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.bubbleRow,
-              item.from === "user" ? styles.bubbleRowUser : styles.bubbleRowBot,
-            ]}
-          >
-            {item.from === "bot" && (
-              <View style={styles.botIcon}>
-                <Ionicons name="sparkles" size={14} color="#FFFFFF" />
-              </View>
-            )}
-
-            <View
-              style={[
-                styles.bubble,
-                item.from === "user" ? styles.bubbleUser : styles.bubbleBot,
-              ]}
-            >
-              <Text
-                style={
-                  item.from === "user" ? styles.bubbleTextUser : styles.bubbleTextBot
-                }
-              >
-                {item.text}
-              </Text>
-            </View>
-          </View>
-        )}
-        ListFooterComponent={
-          botTyping ? (
-            <View style={[styles.bubbleRow, styles.bubbleRowBot]}>
-              <View style={styles.botIcon}>
-                <Ionicons name="sparkles" size={14} color="#FFFFFF" />
-              </View>
-              <View style={[styles.bubble, styles.bubbleBot]}>
-                <Text style={styles.bubbleTextBot}>Typing...</Text>
-              </View>
-            </View>
-          ) : null
-        }
-      />
-
-      {messages.length <= 1 && (
-        <View style={styles.suggestionsRow}>
-          {suggestedPrompts.map((prompt) => (
-            <TouchableOpacity
-              key={prompt}
-              style={styles.suggestionChip}
-              onPress={() => sendMessage(prompt)}
-            >
-              <Text style={styles.suggestionText}>{prompt}</Text>
-            </TouchableOpacity>
-          ))}
+      {loading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={Colors.primary} />
         </View>
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={messages}
+          keyExtractor={(item) => item._id}
+          contentContainerStyle={styles.list}
+          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          renderItem={({ item }) => {
+            const isMine = item.senderId === user?.id;
+            return (
+              <View
+                style={[styles.bubbleRow, isMine ? styles.bubbleRowUser : styles.bubbleRowBot]}
+              >
+                {!isMine && (
+                  <View style={styles.botIcon}>
+                    <Ionicons name="person" size={14} color="#FFFFFF" />
+                  </View>
+                )}
+
+                <View style={[styles.bubble, isMine ? styles.bubbleUser : styles.bubbleBot]}>
+                  <Text style={isMine ? styles.bubbleTextUser : styles.bubbleTextBot}>
+                    {item.text}
+                  </Text>
+                </View>
+              </View>
+            );
+          }}
+          ListEmptyComponent={
+            <Text style={styles.emptyListText}>
+              No messages yet — say hello to the bus staff.
+            </Text>
+          }
+        />
       )}
 
       <View style={styles.inputBar}>
         <TextInput
           value={input}
           onChangeText={setInput}
-          placeholder="Ask about a bus, route or station..."
+          placeholder="Message bus staff..."
           style={styles.input}
           onSubmitEditing={() => sendMessage(input)}
           returnKeyType="send"
         />
 
         <TouchableOpacity
-          style={[styles.sendButton, !input.trim() && styles.sendButtonDisabled]}
-          disabled={!input.trim()}
+          style={[styles.sendButton, (!input.trim() || sending) && styles.sendButtonDisabled]}
+          disabled={!input.trim() || sending}
           onPress={() => sendMessage(input)}
         >
           <Ionicons name="send" size={18} color="#FFFFFF" />
@@ -173,6 +173,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  emptyState: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    paddingTop: 56,
+  },
+
+  emptyText: {
+    marginTop: 14,
+    textAlign: "center",
+    color: Colors.textSecondary,
+    lineHeight: 22,
+  },
+
+  emptyButton: {
+    marginTop: 20,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+
+  emptyButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+
+  emptyListText: {
+    textAlign: "center",
+    color: Colors.textSecondary,
+    marginTop: 30,
   },
 
   headerWrap: {
@@ -239,29 +280,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 15,
     lineHeight: 21,
-  },
-
-  suggestionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 20,
-    paddingBottom: 10,
-    gap: 8,
-  },
-
-  suggestionChip: {
-    backgroundColor: "#EFF6FF",
-    borderRadius: 30,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  suggestionText: {
-    color: Colors.primary,
-    fontWeight: "600",
-    fontSize: 13,
   },
 
   inputBar: {

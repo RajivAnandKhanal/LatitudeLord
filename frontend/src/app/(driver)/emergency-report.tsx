@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -11,21 +12,37 @@ import {
 } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import * as feedbackService from "../../services/feedbackService";
 import { Colors } from "../../theme/colors";
 
 export default function EmergencyReportScreen() {
   const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
-  function sendReport() {
-    Alert.alert("Emergency Reported", "Control room has been notified.", [
-      {
-        text: "OK",
-        onPress: () => {
-          setMessage("");
-          router.back();
+  async function sendReport() {
+    setSending(true);
+    try {
+      // There's no dedicated emergency-alert endpoint on the backend yet —
+      // this routes through the anonymous feedback channel, tagged so it's
+      // easy to spot and triage separately from regular feedback.
+      await feedbackService.submitFeedback(`[EMERGENCY] ${message.trim()}`);
+      Alert.alert("Emergency Reported", "Your report has been submitted.", [
+        {
+          text: "OK",
+          onPress: () => {
+            setMessage("");
+            router.back();
+          },
         },
-      },
-    ]);
+      ]);
+    } catch (err) {
+      Alert.alert(
+        "Couldn't send report",
+        err instanceof Error ? err.message : "Please try again immediately.",
+      );
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -54,11 +71,11 @@ export default function EmergencyReportScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.button, !message.trim() && styles.buttonDisabled]}
-          disabled={!message.trim()}
+          style={[styles.button, (!message.trim() || sending) && styles.buttonDisabled]}
+          disabled={!message.trim() || sending}
           onPress={sendReport}
         >
-          <Text style={styles.buttonText}>Send Emergency Alert</Text>
+          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send Emergency Alert</Text>}
         </TouchableOpacity>
       </View>
     </ScrollView>

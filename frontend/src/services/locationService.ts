@@ -35,3 +35,32 @@ export async function getCurrentLocation(): Promise<AppLocation> {
     longitude: currentPosition.coords.longitude,
   };
 }
+
+export type LivePosition = AppLocation & { speedKmh: number; heading: number | null };
+
+/**
+ * Streams the device's GPS position (driver-side, for broadcasting a bus's
+ * live location). Returns an unsubscribe function.
+ */
+export async function watchLivePosition(
+  onUpdate: (position: LivePosition) => void,
+): Promise<() => void> {
+  const permission = await Location.requestForegroundPermissionsAsync();
+  if (permission.status !== "granted") {
+    throw new Error("Location permission is required to broadcast a live position.");
+  }
+
+  const subscription = await Location.watchPositionAsync(
+    { accuracy: Location.Accuracy.High, timeInterval: 4000, distanceInterval: 10 },
+    (position) => {
+      onUpdate({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        speedKmh: position.coords.speed ? Math.max(0, position.coords.speed * 3.6) : 0,
+        heading: position.coords.heading ?? null,
+      });
+    },
+  );
+
+  return () => subscription.remove();
+}

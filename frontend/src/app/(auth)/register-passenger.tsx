@@ -11,7 +11,7 @@ import PageHeader from "../../components/common/PageHeader";
 import ProgressSteps from "../../components/common/ProgressSteps";
 import ImagePickerField from "../../components/forms/ImagePickerField";
 
-import { mockUsers } from "../../mock/users";
+import { useAuth } from "../../hooks/useAuth";
 import { Colors } from "../../theme/colors";
 import {
   getPasswordHelp,
@@ -30,6 +30,7 @@ const genderOptions = [
 ];
 
 export default function RegisterPassengerScreen() {
+  const { register: registerAccount, updateUser } = useAuth();
   const [step, setStep] = useState(1);
 
   const [fullName, setFullName] = useState("");
@@ -51,10 +52,6 @@ export default function RegisterPassengerScreen() {
 
     if (!validateEmail(email)) {
       nextErrors.email = "Enter a valid email address.";
-    } else if (
-      mockUsers.some((item) => item.email.toLowerCase() === email.trim().toLowerCase())
-    ) {
-      nextErrors.email = "An account with this email already exists.";
     }
 
     setErrors(nextErrors);
@@ -115,18 +112,18 @@ export default function RegisterPassengerScreen() {
     setStatus(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-
-      mockUsers.push({
-        id: `p-${Date.now()}`,
-        role: "passenger",
+      await registerAccount({
+        name: fullName.trim(),
         email: email.trim(),
         password,
-        fullName: fullName.trim(),
-        gender,
-        healthCondition,
-        photoUrl,
+        role: "passenger",
       });
+
+      // gender/healthCondition/photoUrl aren't part of the register payload
+      // on the backend — save them as a follow-up profile update.
+      if (gender || healthCondition || photoUrl) {
+        await updateUser({ gender, healthCondition, photoUrl } as never);
+      }
 
       setStatus({
         type: "success",
@@ -134,12 +131,12 @@ export default function RegisterPassengerScreen() {
         message: "Passenger account created successfully.",
       });
 
-      setTimeout(() => router.replace("/(auth)/login"), 800);
-    } catch {
+      setTimeout(() => router.replace("/(passenger)/home"), 800);
+    } catch (err) {
       setStatus({
         type: "error",
         title: "Something went wrong",
-        message: "Please try again in a moment.",
+        message: err instanceof Error ? err.message : "Please try again in a moment.",
       });
     } finally {
       setLoading(false);

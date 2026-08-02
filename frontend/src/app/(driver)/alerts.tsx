@@ -1,50 +1,52 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import * as notificationService from "../../services/notificationService";
+import { BackendNotification } from "../../services/notificationService";
 import { Colors } from "../../theme/colors";
 
-const alerts = [
-  {
-    id: "1",
-    type: "High",
-    icon: "warning",
-    color: "#EF4444",
-    title: "Road Blocked",
-    description: "Koteshwor road is temporarily closed.",
-    time: "2 min ago",
-  },
-  {
-    id: "2",
-    type: "Medium",
-    icon: "car",
-    color: "#F59E0B",
-    title: "Heavy Traffic",
-    description: "Slow traffic at Kalanki Ring Road.",
-    time: "8 min ago",
-  },
-  {
-    id: "3",
-    type: "Low",
-    icon: "rainy",
-    color: "#3B82F6",
-    title: "Weather Alert",
-    description: "Light rainfall expected along your route.",
-    time: "15 min ago",
-  },
-  {
-    id: "4",
-    type: "Info",
-    icon: "information-circle",
-    color: "#10B981",
-    title: "Journey Reminder",
-    description: "Next scheduled trip starts at 2:30 PM.",
-    time: "Today",
-  },
-];
+const TYPE_STYLE: Record<BackendNotification["type"], { icon: string; color: string; label: string }> = {
+  busArrival: { icon: "bus", color: "#3B82F6", label: "Arrival" },
+  chat: { icon: "chatbubble", color: "#10B981", label: "Chat" },
+  system: { icon: "warning", color: "#EF4444", label: "System" },
+  general: { icon: "information-circle", color: "#F59E0B", label: "Info" },
+};
+
+function timeAgo(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.round(diffMs / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return new Date(iso).toLocaleDateString();
+}
 
 export default function AlertsScreen() {
+  const [alerts, setAlerts] = useState<BackendNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const { items } = await notificationService.getMyNotifications();
+      setAlerts(items);
+    } catch {
+      setAlerts([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const unread = alerts.filter((a) => !a.isRead).length;
+
   return (
     <ScrollView
       style={styles.container}
@@ -53,67 +55,82 @@ export default function AlertsScreen() {
       <View style={styles.content}>
         <PageHeader
           title="Alerts"
-          subtitle="Traffic, weather & emergencies"
+          subtitle="Notifications & emergencies"
         />
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>1</Text>
-            <Text style={styles.summaryLabel}>Critical</Text>
+            <Text style={styles.summaryNumber}>{unread}</Text>
+            <Text style={styles.summaryLabel}>Unread</Text>
           </View>
 
           <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>2</Text>
-            <Text style={styles.summaryLabel}>Traffic</Text>
-          </View>
-
-          <View style={styles.summaryItem}>
-            <Text style={styles.summaryNumber}>4</Text>
+            <Text style={styles.summaryNumber}>{alerts.length}</Text>
             <Text style={styles.summaryLabel}>Total</Text>
           </View>
         </View>
 
         <Text style={styles.sectionTitle}>Latest Alerts</Text>
 
-        {alerts.map((item) => (
-          <View key={item.id} style={styles.alertCard}>
-            <View
-              style={[
-                styles.iconContainer,
-                { backgroundColor: item.color + "22" },
-              ]}
+        {loading && <ActivityIndicator color={Colors.primary} style={{ marginBottom: 16 }} />}
+
+        {!loading && alerts.length === 0 && (
+          <Text style={styles.empty}>No notifications yet.</Text>
+        )}
+
+        {alerts.map((item) => {
+          const meta = TYPE_STYLE[item.type] ?? TYPE_STYLE.general;
+          return (
+            <TouchableOpacity
+              key={item._id}
+              style={styles.alertCard}
+              onPress={() => {
+                if (!item.isRead) {
+                  notificationService.markAsRead(item._id).catch(() => undefined);
+                  setAlerts((prev) =>
+                    prev.map((a) => (a._id === item._id ? { ...a, isRead: true } : a)),
+                  );
+                }
+              }}
             >
-              <Ionicons
-                name={item.icon as any}
-                size={24}
-                color={item.color}
-              />
-            </View>
-
-            <View style={styles.alertBody}>
-              <View style={styles.row}>
-                <Text style={styles.alertTitle}>{item.title}</Text>
-
-                <Text
-                  style={[
-                    styles.badge,
-                    { color: item.color },
-                  ]}
-                >
-                  {item.type}
-                </Text>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: meta.color + "22" },
+                ]}
+              >
+                <Ionicons
+                  name={meta.icon as any}
+                  size={24}
+                  color={meta.color}
+                />
               </View>
 
-              <Text style={styles.description}>
-                {item.description}
-              </Text>
+              <View style={styles.alertBody}>
+                <View style={styles.row}>
+                  <Text style={styles.alertTitle}>{item.title}</Text>
 
-              <Text style={styles.time}>
-                {item.time}
-              </Text>
-            </View>
-          </View>
-        ))}
+                  <Text
+                    style={[
+                      styles.badge,
+                      { color: meta.color },
+                    ]}
+                  >
+                    {meta.label}
+                  </Text>
+                </View>
+
+                <Text style={styles.description}>
+                  {item.body}
+                </Text>
+
+                <Text style={styles.time}>
+                  {timeAgo(item.createdAt)}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
 
         <TouchableOpacity
           style={styles.button}
@@ -131,6 +148,7 @@ export default function AlertsScreen() {
 
         <TouchableOpacity
           style={[styles.button, styles.secondary]}
+          onPress={load}
         >
           <Ionicons
             name="refresh"
@@ -194,6 +212,12 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "800",
     color: Colors.text,
+    marginBottom: 16,
+  },
+
+  empty: {
+    color: Colors.textSecondary,
+    textAlign: "center",
     marginBottom: 16,
   },
 

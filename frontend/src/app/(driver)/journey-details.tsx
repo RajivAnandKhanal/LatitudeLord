@@ -1,18 +1,36 @@
 import { Ionicons } from "@expo/vector-icons";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import { useAuth } from "../../hooks/useAuth";
+import { useBusDetails } from "../../hooks/useBusDetails";
 import { Colors } from "../../theme/colors";
+import { DriverUser } from "../../types/auth";
 
 export default function JourneyDetailsScreen() {
-  const stations = [
-    "Ratnapark",
-    "Putalisadak",
-    "Baneshwor",
-    "Tinkune",
-    "Airport",
-    "Koteshwor",
-  ];
+  const { user } = useAuth();
+  const driver = user?.role === "driver" ? (user as DriverUser) : null;
+  const driverBus = driver?.buses?.[0];
+  const { bus, loading } = useBusDetails(driverBus?.id);
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!bus) {
+    return (
+      <ScrollView style={styles.container}>
+        <View style={styles.content}>
+          <PageHeader title="Journey Details" subtitle="Today's Route" showBackButton />
+          <Text style={styles.info}>No bus registered yet.</Text>
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container}>
@@ -25,39 +43,39 @@ export default function JourneyDetailsScreen() {
 
         <View style={styles.card}>
           <Text style={styles.route}>
-            Ratnapark → Koteshwor
+            {bus.routeName}
           </Text>
 
           <Text style={styles.info}>
-            Bus No: BA 3 KHA 4567
+            Bus No: {bus.plateNumber}
           </Text>
 
           <Text style={styles.info}>
-            Departure: 7:30 AM
+            Status: {bus.status}
           </Text>
 
           <Text style={styles.info}>
-            Expected Arrival: 8:45 AM
+            ETA: {bus.mlEtaMinutes ?? bus.etaMinutes} min
           </Text>
 
           <Text style={styles.info}>
-            Current Passengers: 26
-          </Text>
-
-          <Text style={styles.info}>
-            Driver: Ram Bahadur
+            Driver: {bus.driverName}
           </Text>
         </View>
 
         <Text style={styles.heading}>Stations</Text>
 
-        {stations.map((station, index) => (
-          <View key={index} style={styles.station}>
+        {bus.routeStations.length === 0 && (
+          <Text style={styles.info}>No stations set for this route yet.</Text>
+        )}
+
+        {bus.routeStations.map((station, index) => (
+          <View key={station + index} style={styles.station}>
             <Ionicons
               name={
                 index === 0
                   ? "play-circle"
-                  : index === stations.length - 1
+                  : index === bus.routeStations.length - 1
                   ? "flag"
                   : "ellipse"
               }
@@ -76,6 +94,7 @@ export default function JourneyDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+loader: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.background },
 container:{flex:1,backgroundColor:Colors.background},
 content:{padding:20,paddingTop:56,paddingBottom:40},
 card:{

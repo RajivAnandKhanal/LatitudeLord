@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -10,16 +11,80 @@ import {
 } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import { useAuth } from "../../hooks/useAuth";
+import { connectSocket } from "../../services/socket";
+import { pingLocation } from "../../services/liveTrackingSocket";
+import * as busLocationService from "../../services/busLocationService";
+import { watchLivePosition, LivePosition } from "../../services/locationService";
 import { Colors } from "../../theme/colors";
+import { DriverUser } from "../../types/auth";
 
 export default function CurrentTripLiveScreen() {
+  const { user } = useAuth();
+  const driver = user?.role === "driver" ? (user as DriverUser) : null;
+  const bus = driver?.buses?.[0];
+
+  const [position, setPosition] = useState<LivePosition | null>(null);
+  const [broadcasting, setBroadcasting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const stopWatchRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!bus) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        await connectSocket();
+        const stop = await watchLivePosition(async (pos) => {
+          if (cancelled) return;
+          setPosition(pos);
+
+          const ack = await pingLocation(bus.id, {
+            lat: pos.latitude,
+            lng: pos.longitude,
+            speedKmh: pos.speedKmh,
+            heading: pos.heading ?? undefined,
+          });
+
+          if (ack.success) {
+            setBroadcasting(true);
+          } else {
+            // Socket path unavailable — fall back to the REST endpoint.
+            await busLocationService
+              .pushLocation(bus.id, {
+                lat: pos.latitude,
+                lng: pos.longitude,
+                speedKmh: pos.speedKmh,
+                heading: pos.heading ?? undefined,
+              })
+              .then(() => setBroadcasting(true))
+              .catch(() => setBroadcasting(false));
+          }
+        });
+        stopWatchRef.current = stop;
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not access location.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      stopWatchRef.current?.();
+    };
+  }, [bus?.id]);
+
   function confirmEndJourney() {
-    Alert.alert("End Journey?", "This will mark the current trip as completed.", [
+    Alert.alert("End Journey?", "This will stop broadcasting your live location.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "End Journey",
         style: "destructive",
-        onPress: () => router.replace("/(driver)/dashboard"),
+        onPress: () => {
+          stopWatchRef.current?.();
+          router.replace("/(driver)/dashboard");
+        },
       },
     ]);
   }
@@ -34,55 +99,41 @@ export default function CurrentTripLiveScreen() {
         />
 
         <View style={styles.statusCard}>
-          <Text style={styles.bus}>Bus NP-01-1234</Text>
-
-          <Text style={styles.route}>
-            Ratnapark → Koteshwor
+          <Text style={styles.bus}>
+            {bus ? `${bus.companyBusNumber ?? "Bus"} • ${bus.numberPlate}` : "No bus registered"}
           </Text>
 
           <View style={styles.liveRow}>
-            <View style={styles.liveDot} />
+            <View style={[styles.liveDot, !broadcasting && styles.liveDotOff]} />
             <Text style={styles.liveText}>
-              Trip Currently Running
+              {error
+                ? error
+                : broadcasting
+                  ? "Broadcasting live location"
+                  : "Connecting…"}
             </Text>
           </View>
         </View>
 
-        <View style={styles.stats}>
-          <View style={styles.box}>
-            <Text style={styles.number}>18</Text>
-            <Text style={styles.label}>Passengers</Text>
-          </View>
-
-          <View style={styles.box}>
-            <Text style={styles.number}>7</Text>
-            <Text style={styles.label}>Stops Left</Text>
-          </View>
-        </View>
-
         <View style={styles.card}>
-          <Text style={styles.section}>
-            Upcoming Stops
-          </Text>
+          <Text style={styles.section}>Current Position</Text>
 
-          {[
-            "Baneshwor",
-            "Tinkune",
-            "Airport",
-            "Koteshwor",
-          ].map((item) => (
-            <View style={styles.station} key={item}>
-              <Ionicons
-                name="location"
-                size={18}
-                color={Colors.primary}
-              />
-
-              <Text style={styles.stationName}>
-                {item}
-              </Text>
-            </View>
-          ))}
+          {position ? (
+            <>
+              <View style={styles.station}>
+                <Ionicons name="location" size={18} color={Colors.primary} />
+                <Text style={styles.stationName}>
+                  {position.latitude.toFixed(5)}, {position.longitude.toFixed(5)}
+                </Text>
+              </View>
+              <View style={styles.station}>
+                <Ionicons name="speedometer-outline" size={18} color={Colors.primary} />
+                <Text style={styles.stationName}>{position.speedKmh.toFixed(1)} km/h</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.stationName}>Waiting for GPS fix…</Text>
+          )}
         </View>
 
         <TouchableOpacity style={styles.stopButton} onPress={confirmEndJourney}>
@@ -145,36 +196,13 @@ const styles = StyleSheet.create({
     marginRight:10
   },
 
+  liveDotOff: {
+    backgroundColor: "#F59E0B",
+  },
+
   liveText:{
     fontWeight:"700",
     color:"#15803D"
-  },
-
-  stats:{
-    flexDirection:"row",
-    justifyContent:"space-between",
-    marginBottom:20
-  },
-
-  box:{
-    width:"48%",
-    backgroundColor:"#fff",
-    borderRadius:18,
-    padding:20,
-    alignItems:"center",
-    borderWidth:1,
-    borderColor:Colors.border
-  },
-
-  number:{
-    fontSize:30,
-    fontWeight:"800",
-    color:Colors.primary
-  },
-
-  label:{
-    marginTop:6,
-    color:Colors.textSecondary
   },
 
   card:{
@@ -182,7 +210,8 @@ const styles = StyleSheet.create({
     borderRadius:20,
     padding:20,
     borderWidth:1,
-    borderColor:Colors.border
+    borderColor:Colors.border,
+    marginBottom: 20,
   },
 
   section:{

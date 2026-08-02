@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const authRoutes = require('./auth.routes');
+const userRoutes = require('./user.routes');
 const busRoutes = require('./bus.routes');
 const routeRoutes = require('./route.routes');
 const locationRoutes = require('./location.routes');
@@ -14,6 +15,7 @@ const staffRoutes = require('./staff.routes');
 // Mount sub-routers
 // Week 1
 router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
 
 // Week 2
 router.use('/buses', busRoutes);

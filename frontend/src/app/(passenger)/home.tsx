@@ -13,10 +13,12 @@ import BusCard from "../../components/common/BusCard";
 import PageHeader from "../../components/common/PageHeader";
 import QuickAction from "../../components/common/QuickAction";
 import SectionHeader from "../../components/common/SectionHeader";
-import { Bus, buses } from "../../mock/buses";
+import { Bus } from "../../mock/buses";
+import { useBusesList } from "../../hooks/useBusesList";
 import { Colors } from "../../theme/colors";
 
 export default function PassengerHomeScreen() {
+  const { buses, loading } = useBusesList();
   const [station, setStation] = useState("");
   const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
 
@@ -30,7 +32,7 @@ export default function PassengerHomeScreen() {
     return buses.filter((bus) =>
       bus.routeStations.some((item) => item.toLowerCase().includes(query)),
     );
-  }, [station]);
+  }, [station, buses]);
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -82,7 +84,10 @@ export default function PassengerHomeScreen() {
 
         <SectionHeader title="Nearby Buses" />
 
-        {filteredBuses.map((bus) => (
+        {loading && <Text style={styles.empty}>Loading buses…</Text>}
+
+        {!loading &&
+          filteredBuses.map((bus) => (
           <BusCard
             key={bus.id}
             bus={bus}
@@ -98,7 +103,7 @@ export default function PassengerHomeScreen() {
           />
         ))}
 
-        {filteredBuses.length === 0 && (
+        {!loading && filteredBuses.length === 0 && (
           <Text style={styles.empty}>No buses found for this station.</Text>
         )}
       </View>

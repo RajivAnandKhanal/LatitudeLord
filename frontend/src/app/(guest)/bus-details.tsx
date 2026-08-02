@@ -1,11 +1,29 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import AppLogo from "../../components/common/AppLogo";
-import { buses } from "../../mock/buses";
+import { useBusesList } from "../../hooks/useBusesList";
 import { Colors } from "../../theme/colors";
 
 export default function GuestBusDetailsScreen() {
+  const { buses, loading } = useBusesList();
   const bus = buses[0];
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!bus) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <AppLogo />
+        <Text style={styles.value}>No buses are currently active.</Text>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView
@@ -48,6 +66,13 @@ export default function GuestBusDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.background,
+  },
+
   container: {
     flex: 1,
     backgroundColor: Colors.background,

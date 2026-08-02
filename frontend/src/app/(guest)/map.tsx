@@ -8,13 +8,15 @@ import MapBusCard from "../../components/common/MapBusCard";
 import PageHeader from "../../components/common/PageHeader";
 
 import { useLiveLocation } from "../../hooks/useLiveLocation";
+import { useBusesList } from "../../hooks/useBusesList";
 
-import { Bus, buses } from "../../mock/buses";
+import { Bus } from "../../mock/buses";
 
 import { Colors } from "../../theme/colors";
 
 export default function GuestMapScreen() {
   const { location, loading } = useLiveLocation();
+  const { buses, loading: busesLoading } = useBusesList();
 
   const [search, setSearch] = useState("");
 
@@ -38,9 +40,9 @@ export default function GuestMapScreen() {
         stationMatches
       );
     });
-  }, [search]);
+  }, [search, buses]);
 
-  if (loading) {
+  if (loading || busesLoading) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color={Colors.primary} />

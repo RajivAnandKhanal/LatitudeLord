@@ -9,7 +9,7 @@ import FormStatus from "../../components/common/FormStatus";
 import PageHeader from "../../components/common/PageHeader";
 
 import { useAuth } from "../../hooks/useAuth";
-import { mockUsers } from "../../mock/users";
+import { ApiRequestError } from "../../services/httpClient";
 import { Colors } from "../../theme/colors";
 import { validateEmail, validateRequired } from "../../utils/validation";
 
@@ -55,24 +55,14 @@ export default function LoginScreen() {
     setStatus(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const foundUser = mockUsers.find(
-        (item) =>
-          item.email.trim().toLowerCase() === email.trim().toLowerCase() &&
-          item.password === password,
-      );
-
-      if (!foundUser) {
-        setStatus({
-          type: "error",
-          title: "Login failed",
-          message: "Invalid email or password.",
-        });
-        return;
+      let appUser;
+      try {
+        appUser = await login(email.trim(), password, "passenger");
+      } catch (passengerErr) {
+        // Login doesn't ask which account type this is — try passenger
+        // first (the common case), then fall back to driver.
+        appUser = await login(email.trim(), password, "driver");
       }
-
-      await login(foundUser);
 
       setStatus({
         type: "success",
@@ -80,12 +70,20 @@ export default function LoginScreen() {
         message: "Redirecting to your dashboard.",
       });
 
-      if (foundUser.role === "passenger") {
+      if (appUser.role === "passenger") {
         router.replace("/(passenger)/home");
         return;
       }
 
       router.replace("/(driver)/dashboard");
+    } catch (err) {
+      const message =
+        err instanceof ApiRequestError ? err.message : "Invalid email or password.";
+      setStatus({
+        type: "error",
+        title: "Login failed",
+        message,
+      });
     } finally {
       setLoading(false);
     }
@@ -147,13 +145,10 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <View style={styles.demoBox}>
-          <Text style={styles.demoTitle}>Demo Accounts</Text>
-
-          <Text style={styles.demoText}>passenger@latitudelord.com</Text>
-          <Text style={styles.demoText}>Password: Passenger123</Text>
-
-          <Text style={styles.demoText}>driver@latitudelord.com</Text>
-          <Text style={styles.demoText}>Password: Driver123</Text>
+          <Text style={styles.demoTitle}>New here?</Text>
+          <Text style={styles.demoText}>
+            Create a passenger or driver account first — there's no demo login until you register.
+          </Text>
         </View>
       </View>
     </AuthScreen>

@@ -10,11 +10,17 @@ import PageHeader from "../../components/common/PageHeader";
 import ProgressSteps from "../../components/common/ProgressSteps";
 import ImagePickerField from "../../components/forms/ImagePickerField";
 
-import { mockUsers } from "../../mock/users";
+import { useAuth } from "../../hooks/useAuth";
+import * as busService from "../../services/busService";
+import * as staffService from "../../services/staffService";
+import * as routeService from "../../services/routeService";
+import { toBackendDay } from "../../adapters/busAdapters";
+import { DEFAULT_LOCATION } from "../../services/locationService";
 import { Colors } from "../../theme/colors";
 import { DayOfWeek } from "../../types/auth";
 import {
   getPasswordHelp,
+  validateEmail,
   validateName,
   validatePassword,
   validatePhone,
@@ -35,6 +41,7 @@ const days: DayOfWeek[] = [
 ];
 
 export default function RegisterDriverScreen() {
+  const { register: registerAccount } = useAuth();
   const [step, setStep] = useState(1);
 
   const [driverName, setDriverName] = useState("");
@@ -43,6 +50,8 @@ export default function RegisterDriverScreen() {
   const [busNumber, setBusNumber] = useState("");
   const [staffName, setStaffName] = useState("");
   const [staffPhone, setStaffPhone] = useState("");
+  const [staffEmail, setStaffEmail] = useState("");
+  const [staffPassword, setStaffPassword] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
 
   const [routes, setRoutes] = useState<Record<DayOfWeek, string>>({
@@ -80,17 +89,6 @@ export default function RegisterDriverScreen() {
 
     if (!validatePlateNumber(busPlate)) {
       nextErrors.busPlate = "Enter a valid bus number plate.";
-    } else if (
-      mockUsers.some(
-        (item) =>
-          item.role === "driver" &&
-          item.buses.some(
-            (bus) =>
-              bus.numberPlate.toLowerCase() === busPlate.trim().toLowerCase(),
-          ),
-      )
-    ) {
-      nextErrors.busPlate = "This bus plate is already registered.";
     }
 
     setErrors(nextErrors);
@@ -113,6 +111,14 @@ export default function RegisterDriverScreen() {
 
     if (!validatePhone(staffPhone)) {
       nextErrors.staffPhone = "Enter a valid Nepal mobile number.";
+    }
+
+    if (!validateEmail(staffEmail)) {
+      nextErrors.staffEmail = "Enter a valid email for the staff account.";
+    }
+
+    if (!validatePassword(staffPassword)) {
+      nextErrors.staffPassword = getPasswordHelp();
     }
 
     setErrors(nextErrors);
@@ -161,14 +167,8 @@ export default function RegisterDriverScreen() {
   async function submitForm() {
     const nextErrors: Record<string, string> = {};
 
-    if (!validateRequired(email)) {
-      nextErrors.email = "Enter an email address.";
-    } else if (
-      mockUsers.some(
-        (item) => item.email.toLowerCase() === email.trim().toLowerCase(),
-      )
-    ) {
-      nextErrors.email = "An account with this email already exists.";
+    if (!validateEmail(email)) {
+      nextErrors.email = "Enter a valid email address.";
     }
 
     if (!validatePassword(password)) nextErrors.password = getPasswordHelp();
@@ -190,40 +190,55 @@ export default function RegisterDriverScreen() {
     setStatus(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-
-      const busId = `bus-${Date.now()}`;
-
-      mockUsers.push({
-        id: `d-${Date.now()}`,
-        role: "driver",
+      // 1. Create the driver's own login.
+      await registerAccount({
+        name: driverName.trim(),
         email: email.trim(),
         password,
-        fullName: driverName.trim(),
-        phoneNumber: driverPhone || undefined,
-        photoUrl,
-        buses: [
-          {
-            id: busId,
-            numberPlate: busPlate.trim(),
-            companyBusNumber: busNumber || undefined,
-            staff: [
-              {
-                id: `staff-${Date.now()}`,
-                staffName: staffName.trim() || "Bus Staff",
-                staffPhone,
-              },
-            ],
-            schedule: days
-              .filter((day) => routes[day].trim().toLowerCase() !== "off")
-              .map((day) => ({
-                dayOfWeek: day,
-                departureTime: "07:00",
-                routeName: routes[day].trim(),
-              })),
-          },
-        ],
+        role: "driver",
+        phone: driverPhone || undefined,
       });
+
+      // 2. Register the bus under that driver.
+      const bus = await busService.createBus({
+        busNumber: (busNumber || busPlate).trim(),
+        plateNumber: busPlate.trim(),
+      });
+
+      // 3. Create the staff/conductor login for this bus.
+      await staffService.createStaff({
+        name: staffName.trim() || "Bus Staff",
+        email: staffEmail.trim(),
+        password: staffPassword,
+        phone: staffPhone,
+      });
+
+      // 4. Save the weekly schedule. The form only collects a free-text
+      // route per day (e.g. "Ratnapark to Jorpati") rather than picking
+      // stops on a map, so we store it as a two-stop route using the
+      // app's default coordinates as placeholders — good enough to show
+      // the schedule, but real stop locations should be set from the
+      // driver's route-editing screen for live tracking to be accurate.
+      const schedule = days
+        .filter((day) => routes[day].trim().toLowerCase() !== "off")
+        .map((day) => {
+          const [from, to] = routes[day].split(/ to |→/i).map((s) => s.trim());
+          return {
+            day: toBackendDay(day),
+            stations: [
+              { name: from || routes[day].trim(), ...DEFAULT_LOCATION },
+              {
+                name: to || "Destination",
+                latitude: DEFAULT_LOCATION.latitude + 0.01,
+                longitude: DEFAULT_LOCATION.longitude + 0.01,
+              },
+            ].map((s) => ({ name: s.name, lat: s.latitude, lng: s.longitude })),
+          };
+        });
+
+      if (schedule.length > 0) {
+        await routeService.setSchedule(bus._id, schedule);
+      }
 
       setStatus({
         type: "success",
@@ -231,12 +246,12 @@ export default function RegisterDriverScreen() {
         message: "Driver account created successfully.",
       });
 
-      setTimeout(() => router.replace("/(auth)/login"), 800);
-    } catch {
+      setTimeout(() => router.replace("/(driver)/dashboard"), 800);
+    } catch (err) {
       setStatus({
         type: "error",
         title: "Something went wrong",
-        message: "Please try again in a moment.",
+        message: err instanceof Error ? err.message : "Please try again in a moment.",
       });
     } finally {
       setLoading(false);
@@ -320,6 +335,27 @@ export default function RegisterDriverScreen() {
             textContentType="telephoneNumber"
             error={errors.staffPhone}
             onChangeText={setStaffPhone}
+          />
+
+          <CustomInput
+            label="Bus Staff Login Email *"
+            placeholder="staff@example.com"
+            value={staffEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            textContentType="emailAddress"
+            error={errors.staffEmail}
+            onChangeText={setStaffEmail}
+          />
+
+          <CustomInput
+            label="Bus Staff Login Password *"
+            placeholder="Create a password for staff sign-in"
+            secureTextEntry
+            value={staffPassword}
+            textContentType="newPassword"
+            error={errors.staffPassword}
+            onChangeText={setStaffPassword}
           />
 
           <View style={styles.row}>

@@ -26,11 +26,17 @@ const createBus = asyncHandler(async (req, res) => {
 // ── GET /api/v1/buses ───────────────────────────────────────────────────────────
 // Public — passengers browse buses without logging in. Optional ?status= filter.
 const getAllBuses = asyncHandler(async (req, res) => {
-  const { status } = req.query;
+  const { status, driver } = req.query;
   const { page, limit, skip } = getPagination(req.query);
 
   const filter = {};
   if (status) filter.status = status;
+  if (driver === 'me') {
+    if (!req.user) throw new ApiError(401, 'Login required to filter by ?driver=me');
+    filter.driver = req.user._id;
+  } else if (driver) {
+    filter.driver = driver;
+  }
 
   const [buses, total] = await Promise.all([
     Bus.find(filter)

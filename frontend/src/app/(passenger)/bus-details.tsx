@@ -1,20 +1,31 @@
 import { router, useLocalSearchParams } from "expo-router";
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
-import { buses } from "../../mock/buses";
+import { useBusDetails } from "../../hooks/useBusDetails";
 import { Colors } from "../../theme/colors";
 
 export default function BusDetailsScreen() {
-  const { busId } = useLocalSearchParams();
+  const { busId } = useLocalSearchParams<{ busId: string }>();
 
-  const bus = buses.find((item) => item.id === busId) ?? buses[0];
+  const { bus, loading, error } = useBusDetails(busId);
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  if (!bus) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PageHeader title="Bus Details" showBackButton />
+        <Text style={styles.value}>{error ?? "Bus not found."}</Text>
+      </ScrollView>
+    );
+  }
 
   const eta = bus.mlEtaMinutes ?? bus.etaMinutes;
 
@@ -56,6 +67,13 @@ export default function BusDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  loader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.background,
+  },
+
   container: {
     flex: 1,
     backgroundColor: Colors.background,

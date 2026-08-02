@@ -16,6 +16,11 @@ import CustomInput from "../../components/common/CustomInput";
 import PageHeader from "../../components/common/PageHeader";
 import ImagePickerField from "../../components/forms/ImagePickerField";
 import { useAuth } from "../../hooks/useAuth";
+import * as busService from "../../services/busService";
+import * as staffService from "../../services/staffService";
+import * as routeService from "../../services/routeService";
+import { toBackendDay } from "../../adapters/busAdapters";
+import { DEFAULT_LOCATION } from "../../services/locationService";
 import { Colors } from "../../theme/colors";
 import { DayOfWeek, DriverUser } from "../../types/auth";
 import {
@@ -36,7 +41,7 @@ const dayLabels: { key: DayOfWeek; label: string }[] = [
 ];
 
 export default function DriverProfileScreen() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, refreshDriverBuses } = useAuth();
   const driver = user?.role === "driver" ? (user as DriverUser) : null;
   const bus = driver?.buses?.[0];
 
@@ -118,35 +123,56 @@ export default function DriverProfileScreen() {
     setSaving(true);
 
     try {
-      const updatedBus = {
-        ...bus,
-        numberPlate: numberPlate.trim(),
-        companyBusNumber: companyBusNumber || undefined,
-        staff: [
-          {
-            id: bus.staff[0]?.id ?? `staff-${Date.now()}`,
-            staffName: staffName.trim(),
-            staffPhone,
-          },
-        ],
-        schedule: dayLabels
-          .filter(({ key }) => routes[key].trim().toLowerCase() !== "off" && routes[key].trim() !== "")
-          .map(({ key }) => ({
-            dayOfWeek: key,
-            departureTime:
-              bus.schedule.find((entry) => entry.dayOfWeek === key)
-                ?.departureTime ?? "07:00",
-            routeName: routes[key].trim(),
-          })),
-      };
-
+      // 1. Personal info.
       await updateUser({
         fullName: fullName.trim(),
         phoneNumber: phoneNumber || undefined,
         photoUrl,
-        buses: [updatedBus, ...driver.buses.slice(1)],
       });
 
+      // 2. Bus details.
+      await busService.updateBus(bus.id, {
+        busNumber: companyBusNumber || numberPlate.trim(),
+        plateNumber: numberPlate.trim(),
+      });
+
+      // 3. Staff contact info (name/phone only — email/password can't be
+      // changed here since they're the staff member's own login).
+      if (bus.staff[0]) {
+        await staffService.updateStaff(bus.staff[0].id, {
+          name: staffName.trim(),
+          phone: staffPhone,
+        });
+      }
+
+      // 4. Weekly schedule. As in registration, each day is stored as a
+      // two-stop route using placeholder coordinates since this screen only
+      // collects a route name, not a map-picked list of stops.
+      const schedule = dayLabels
+        .filter(({ key }) => routes[key].trim().toLowerCase() !== "off" && routes[key].trim() !== "")
+        .map(({ key }) => {
+          const value = routes[key].trim();
+          const [from, to] = value.split(/ to |→/i).map((s) => s.trim());
+          return {
+            day: toBackendDay(key),
+            stations: [
+              { name: from || value, ...DEFAULT_LOCATION },
+              {
+                name: to || "Destination",
+                latitude: DEFAULT_LOCATION.latitude + 0.01,
+                longitude: DEFAULT_LOCATION.longitude + 0.01,
+              },
+            ].map((s) => ({ name: s.name, lat: s.latitude, lng: s.longitude })),
+          };
+        });
+
+      if (schedule.length > 0) {
+        await routeService.setSchedule(bus.id, schedule);
+      } else {
+        await routeService.deleteSchedule(bus.id).catch(() => undefined);
+      }
+
+      await refreshDriverBuses();
       setEditing(false);
     } finally {
       setSaving(false);
