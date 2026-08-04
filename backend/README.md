@@ -50,3 +50,17 @@ Start the server:
 ```bash
 npm start
 ```
+
+## Environment Variables
+
+Create a `.env` file.
+
+Example:
+
+```env
+PORT=5000
+DATABASE_URL=<database-url>
+JWT_SECRET=<secret-key>
+```
+
+Store sensitive information in environment variables instead of hardcoding them.
