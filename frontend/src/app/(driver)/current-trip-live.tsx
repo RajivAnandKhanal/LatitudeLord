@@ -11,7 +11,9 @@ import {
 } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
-import LeafletMap from "../../components/common/LeafletMap";
+import LeafletMap, {
+  LeafletMapHandle,
+} from "../../components/common/LeafletMap";
 import { useAuth } from "../../hooks/useAuth";
 import { connectSocket } from "../../services/socket";
 import { pingLocation } from "../../services/liveTrackingSocket";
@@ -32,6 +34,7 @@ export default function CurrentTripLiveScreen() {
   const [broadcasting, setBroadcasting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const stopWatchRef = useRef<(() => void) | null>(null);
+  const mapRef = useRef<LeafletMapHandle>(null);
 
   useEffect(() => {
     if (!bus) return;
@@ -44,6 +47,11 @@ export default function CurrentTripLiveScreen() {
         const stop = await watchLivePosition(async (pos) => {
           if (cancelled) return;
           setPosition(pos);
+          // Keep the map centered on the driver as they move — markers
+          // update on their own, but the view itself only ever pointed at
+          // the first GPS fix, so without this the driver's dot drifts off
+          // screen after the first update.
+          mapRef.current?.setView(pos.latitude, pos.longitude);
 
           const ack = await pingLocation(bus.id, {
             lat: pos.latitude,
@@ -111,7 +119,9 @@ export default function CurrentTripLiveScreen() {
         <View style={styles.statusCard}>
           <Text style={styles.bus}>
             {bus
-              ? `${bus.companyBusNumber ?? "Bus"} • ${bus.numberPlate}`
+              ? bus.companyBusNumber && bus.companyBusNumber !== bus.numberPlate
+                ? `${bus.companyBusNumber} • ${bus.numberPlate}`
+                : bus.numberPlate
               : "No bus registered"}
           </Text>
 
@@ -134,6 +144,7 @@ export default function CurrentTripLiveScreen() {
           <View style={styles.mapBox}>
             {position ? (
               <LeafletMap
+                ref={mapRef}
                 center={{ lat: position.latitude, lng: position.longitude }}
                 zoom={16}
                 markers={[

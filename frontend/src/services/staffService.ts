@@ -15,8 +15,6 @@ export interface BackendStaff {
 
 export async function createStaff(payload: {
   name: string;
-  email: string;
-  password: string;
   phone: string;
 }): Promise<BackendStaff> {
   return unwrap<BackendStaff>(httpClient.post("/staff", payload));
@@ -32,7 +30,12 @@ export async function getStaffById(id: string): Promise<BackendStaff> {
 
 export async function updateStaff(
   id: string,
-  payload: Partial<{ name: string; phone: string; avatar: string; isActive: boolean }>,
+  payload: Partial<{
+    name: string;
+    phone: string;
+    avatar: string;
+    isActive: boolean;
+  }>,
 ): Promise<BackendStaff> {
   return unwrap<BackendStaff>(httpClient.patch(`/staff/${id}`, payload));
 }

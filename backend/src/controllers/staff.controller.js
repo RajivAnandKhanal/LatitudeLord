@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiResponse = require('../utils/ApiResponse');
 const ApiError = require('../utils/ApiError');
@@ -12,13 +13,16 @@ const assertOwnsStaff = async (staffId, driverId) => {
 };
 
 // ── POST /api/v1/staff ──────────────────────────────────────────────────────────
-// Driver-only — registers a new conductor/staff account linked to this driver.
+// Driver-only — registers a new conductor/staff record linked to this driver.
+// Staff members have no login of their own — only drivers sign in — so we
+// generate an internal, unusable email/password to satisfy the shared
+// Driver schema instead of collecting login credentials from the form.
 // Mirrors the "manage bus staff" sidebar screen from the system design.
 const createStaff = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, phone } = req.body;
 
-  const existing = await Driver.findOne({ email });
-  if (existing) throw new ApiError(409, 'Email is already registered');
+  const email = `staff-${crypto.randomUUID()}@no-login.internal`;
+  const password = crypto.randomBytes(24).toString('hex');
 
   const staff = await Driver.create({
     name,

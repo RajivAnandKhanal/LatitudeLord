@@ -34,6 +34,15 @@ export default function DriverDashboardScreen() {
 
   const todayName = dayOrder[new Date().getDay()];
 
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  }, []);
+
+  const firstName = driver?.fullName?.trim().split(" ")[0];
+
   const todaysJourney = bus?.schedule.find(
     (entry) => entry.dayOfWeek === todayName,
   );
@@ -97,6 +106,11 @@ export default function DriverDashboardScreen() {
           title="Driver Dashboard"
           subtitle="Welcome back, drive safely"
         />
+
+        <Text style={styles.greeting}>
+          {greeting}
+          {firstName ? `, ${firstName}` : ""} 👋
+        </Text>
 
         <View style={styles.heroCard}>
           <View>
@@ -208,6 +222,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 56,
     paddingBottom: 40,
+  },
+
+  greeting: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: Colors.text,
+    marginBottom: 16,
   },
 
   heroCard: {

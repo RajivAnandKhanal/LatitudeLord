@@ -11,7 +11,9 @@ const registerSchema = Joi.object({
 const loginSchema = Joi.object({
   email: Joi.string().email().lowercase().required(),
   password: Joi.string().required(),
-  role: Joi.string().valid('passenger', 'driver', 'staff').default('passenger'),
+  // Bus staff are not issued login credentials — only drivers (and
+  // passengers) can sign in. See staff.validator.js / staff.controller.js.
+  role: Joi.string().valid('passenger', 'driver').default('passenger'),
 });
 
 const refreshTokenSchema = Joi.object({

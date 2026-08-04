@@ -41,7 +41,11 @@ const days: DayOfWeek[] = [
 ];
 
 export default function RegisterDriverScreen() {
-  const { register: registerAccount } = useAuth();
+  const {
+    register: registerAccount,
+    updateUser,
+    refreshDriverBuses,
+  } = useAuth();
   const [step, setStep] = useState(1);
 
   const [driverName, setDriverName] = useState("");
@@ -50,8 +54,6 @@ export default function RegisterDriverScreen() {
   const [busNumber, setBusNumber] = useState("");
   const [staffName, setStaffName] = useState("");
   const [staffPhone, setStaffPhone] = useState("");
-  const [staffEmail, setStaffEmail] = useState("");
-  const [staffPassword, setStaffPassword] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
 
   const [routes, setRoutes] = useState<Record<DayOfWeek, string>>({
@@ -111,14 +113,6 @@ export default function RegisterDriverScreen() {
 
     if (!validatePhone(staffPhone)) {
       nextErrors.staffPhone = "Enter a valid Nepal mobile number.";
-    }
-
-    if (!validateEmail(staffEmail)) {
-      nextErrors.staffEmail = "Enter a valid email for the staff account.";
-    }
-
-    if (!validatePassword(staffPassword)) {
-      nextErrors.staffPassword = getPasswordHelp();
     }
 
     setErrors(nextErrors);
@@ -199,17 +193,24 @@ export default function RegisterDriverScreen() {
         phone: driverPhone || undefined,
       });
 
+      // 1b. Upload & save the driver photo captured in step 3. This has to
+      // happen after registerAccount (uploading needs an authenticated
+      // session) — it uploads the local picker URI and persists the
+      // returned permanent URL as the driver's avatar, same as editing the
+      // photo from the profile screen does.
+      if (photoUrl) {
+        await updateUser({ photoUrl });
+      }
+
       // 2. Register the bus under that driver.
       const bus = await busService.createBus({
         busNumber: (busNumber || busPlate).trim(),
         plateNumber: busPlate.trim(),
       });
 
-      // 3. Create the staff/conductor login for this bus.
+      // 3. Create the staff/conductor record for this bus (no login of their own).
       await staffService.createStaff({
         name: staffName.trim() || "Bus Staff",
-        email: staffEmail.trim(),
-        password: staffPassword,
         phone: staffPhone,
       });
 
@@ -240,6 +241,13 @@ export default function RegisterDriverScreen() {
         await routeService.setSchedule(bus._id, schedule);
       }
 
+      // 5. The bus, staff, and schedule created in steps 2–4 all happened
+      // after the driver's cached profile (built right after step 1) was
+      // already set — so it still thinks this driver has no buses. Refresh
+      // it now so the profile/dashboard show the bus, staff, and trip
+      // details that were just entered instead of an empty state.
+      await refreshDriverBuses();
+
       setStatus({
         type: "success",
         title: "Account created",
@@ -251,7 +259,8 @@ export default function RegisterDriverScreen() {
       setStatus({
         type: "error",
         title: "Something went wrong",
-        message: err instanceof Error ? err.message : "Please try again in a moment.",
+        message:
+          err instanceof Error ? err.message : "Please try again in a moment.",
       });
     } finally {
       setLoading(false);
@@ -328,34 +337,13 @@ export default function RegisterDriverScreen() {
           />
 
           <CustomInput
-            label="Bus Staff Phone Number *"
+            label="Bus Staff Phone Number"
             placeholder="98XXXXXXXX"
             value={staffPhone}
             keyboardType="phone-pad"
             textContentType="telephoneNumber"
             error={errors.staffPhone}
             onChangeText={setStaffPhone}
-          />
-
-          <CustomInput
-            label="Bus Staff Login Email *"
-            placeholder="staff@example.com"
-            value={staffEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            textContentType="emailAddress"
-            error={errors.staffEmail}
-            onChangeText={setStaffEmail}
-          />
-
-          <CustomInput
-            label="Bus Staff Login Password *"
-            placeholder="Create a password for staff sign-in"
-            secureTextEntry
-            value={staffPassword}
-            textContentType="newPassword"
-            error={errors.staffPassword}
-            onChangeText={setStaffPassword}
           />
 
           <View style={styles.row}>
@@ -377,8 +365,13 @@ export default function RegisterDriverScreen() {
         <View>
           <Text style={styles.heading}>Weekly Routes & Photo</Text>
 
-          <ImagePickerField label="Driver Photo *" onImageSelected={setPhotoUrl} />
-          {!!errors.photoUrl && <Text style={styles.error}>{errors.photoUrl}</Text>}
+          <ImagePickerField
+            label="Driver Photo *"
+            onImageSelected={setPhotoUrl}
+          />
+          {!!errors.photoUrl && (
+            <Text style={styles.error}>{errors.photoUrl}</Text>
+          )}
 
           <Text style={styles.subHeading}>Weekly Routes *</Text>
 
