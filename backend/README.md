@@ -64,3 +64,13 @@ JWT_SECRET=<secret-key>
 ```
 
 Store sensitive information in environment variables instead of hardcoding them.
+
+
+## Features
+
+- RESTful API
+- User authentication
+- Database integration
+- Error handling
+- Modular architecture
+- Secure environment configuration
