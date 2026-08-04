@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import MapView, { Marker } from "react-native-maps";
+import LeafletMap from "../../components/common/LeafletMap";
 
 import CustomInput from "../../components/common/CustomInput";
 import MapBusCard from "../../components/common/MapBusCard";
@@ -54,32 +54,33 @@ export default function GuestMapScreen() {
     return `${bus.routeName} • ETA ${bus.etaMinutes} min`;
   }
 
+  const busMarkers = filteredBuses.map((bus) => ({
+    id: bus.id,
+    lat: bus.currentLocation.latitude,
+    lng: bus.currentLocation.longitude,
+    title: bus.busNumber,
+    description: getMarkerDescription(bus),
+    color: selectedBus?.id === bus.id ? "#EF4444" : "#2563EB",
+  }));
+
+  function handleMarkerPress(id: string) {
+    const bus = filteredBuses.find((b) => b.id === id);
+    if (bus) setSelectedBus(bus);
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <PageHeader title="Track Bus" subtitle="Live GPS Tracking" />
       </View>
 
-      <MapView
+      <LeafletMap
         style={styles.map}
-        showsUserLocation
-        initialRegion={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.04,
-          longitudeDelta: 0.04,
-        }}
-      >
-        {filteredBuses.map((bus) => (
-          <Marker
-            key={bus.id}
-            coordinate={bus.currentLocation}
-            title={bus.busNumber}
-            description={getMarkerDescription(bus)}
-            onPress={() => setSelectedBus(bus)}
-          />
-        ))}
-      </MapView>
+        center={{ lat: location.latitude, lng: location.longitude }}
+        zoom={14}
+        markers={busMarkers}
+        onMarkerPress={handleMarkerPress}
+      />
 
       <View style={styles.bottom}>
         <CustomInput

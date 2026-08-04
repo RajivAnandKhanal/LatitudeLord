@@ -1,12 +1,29 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
 import { Colors } from "../../theme/colors";
 
+const EMERGENCY_NUMBERS = [
+  { label: "Nepal Police", number: "100" },
+  { label: "Traffic Police", number: "103" },
+  { label: "National Women Commission Helpline", number: "1145" },
+  { label: "Child Helpline", number: "1098" },
+];
+
 export default function SupportScreen() {
-  function handlePress(title: string) {
-    Alert.alert("Support", `${title} feature will connect with backend.`);
+  function callNumber(number: string) {
+    Linking.openURL(`tel:${number}`).catch(() =>
+      Alert.alert("Unable to place call", `Please dial ${number} manually.`),
+    );
   }
 
   return (
@@ -21,84 +38,39 @@ export default function SupportScreen() {
         showBackButton
       />
 
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handlePress("Call Support")}
-      >
-        <Ionicons name="call-outline" size={26} color={Colors.primary} />
-        <View style={styles.cardBody}>
-          <Text style={styles.title}>Call Support</Text>
-          <Text style={styles.subtitle}>
-            Speak directly with customer support.
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handlePress("Email Support")}
-      >
-        <Ionicons name="mail-outline" size={26} color={Colors.primary} />
-        <View style={styles.cardBody}>
-          <Text style={styles.title}>Email Support</Text>
-          <Text style={styles.subtitle}>
-            support@latitudelord.com
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handlePress("Emergency Contact")}
-      >
-        <Ionicons name="warning-outline" size={26} color="#EF4444" />
-        <View style={styles.cardBody}>
-          <Text style={styles.title}>Emergency Contact</Text>
-          <Text style={styles.subtitle}>
-            Report accidents or emergencies.
-          </Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => handlePress("Live Chat")}
-      >
-        <Ionicons name="chatbubbles-outline" size={26} color={Colors.primary} />
-        <View style={styles.cardBody}>
-          <Text style={styles.title}>Live Chat</Text>
-          <Text style={styles.subtitle}>
-            Chat with support agents.
-          </Text>
-        </View>
-      </TouchableOpacity>
+      <View style={styles.faqCard}>
+        <Text style={styles.faqTitle}>Emergency Helplines</Text>
+        {EMERGENCY_NUMBERS.map((item) => (
+          <TouchableOpacity
+            key={item.number}
+            style={styles.helplineRow}
+            onPress={() => callNumber(item.number)}
+          >
+            <View style={styles.helplineIcon}>
+              <Ionicons name="call" size={20} color="#EF4444" />
+            </View>
+            <View style={styles.cardBody}>
+              <Text style={styles.title}>{item.label}</Text>
+              <Text style={styles.subtitle}>Tap to call {item.number}</Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <View style={styles.faqCard}>
         <Text style={styles.faqTitle}>Frequently Asked Questions</Text>
 
-        <Text style={styles.question}>
-          • How do I track my bus?
-        </Text>
+        <Text style={styles.question}>• How do I track my bus?</Text>
 
-        <Text style={styles.answer}>
-          Open the Map tab and select your bus.
-        </Text>
+        <Text style={styles.answer}>Open the Map tab and select your bus.</Text>
 
-        <Text style={styles.question}>
-          • How do I contact the driver?
-        </Text>
+        <Text style={styles.question}>• How do I contact the driver?</Text>
 
-        <Text style={styles.answer}>
-          Open Chat and select Driver.
-        </Text>
+        <Text style={styles.answer}>Open Chat and select Driver.</Text>
 
-        <Text style={styles.question}>
-          • How do I report a problem?
-        </Text>
+        <Text style={styles.question}>• How do I report a problem?</Text>
 
-        <Text style={styles.answer}>
-          Use the Feedback section.
-        </Text>
+        <Text style={styles.answer}>Use the Feedback section.</Text>
       </View>
     </ScrollView>
   );
@@ -114,16 +86,6 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 56,
     paddingBottom: 40,
-  },
-
-  card: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
   },
 
   cardBody: {
@@ -155,6 +117,21 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginBottom: 12,
     color: Colors.text,
+  },
+
+  helplineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+
+  helplineIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FEE2E2",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   question: {

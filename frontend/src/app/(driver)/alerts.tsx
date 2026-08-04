@@ -1,14 +1,24 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
 import * as notificationService from "../../services/notificationService";
 import { BackendNotification } from "../../services/notificationService";
 import { Colors } from "../../theme/colors";
 
-const TYPE_STYLE: Record<BackendNotification["type"], { icon: string; color: string; label: string }> = {
+const TYPE_STYLE: Record<
+  BackendNotification["type"],
+  { icon: string; color: string; label: string }
+> = {
   busArrival: { icon: "bus", color: "#3B82F6", label: "Arrival" },
   chat: { icon: "chatbubble", color: "#10B981", label: "Chat" },
   system: { icon: "warning", color: "#EF4444", label: "System" },
@@ -48,15 +58,9 @@ export default function AlertsScreen() {
   const unread = alerts.filter((a) => !a.isRead).length;
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <PageHeader
-          title="Alerts"
-          subtitle="Notifications & emergencies"
-        />
+        <PageHeader title="Alerts" subtitle="Notifications & emergencies" />
 
         <View style={styles.summaryCard}>
           <View style={styles.summaryItem}>
@@ -72,7 +76,12 @@ export default function AlertsScreen() {
 
         <Text style={styles.sectionTitle}>Latest Alerts</Text>
 
-        {loading && <ActivityIndicator color={Colors.primary} style={{ marginBottom: 16 }} />}
+        {loading && (
+          <ActivityIndicator
+            color={Colors.primary}
+            style={{ marginBottom: 16 }}
+          />
+        )}
 
         {!loading && alerts.length === 0 && (
           <Text style={styles.empty}>No notifications yet.</Text>
@@ -86,9 +95,13 @@ export default function AlertsScreen() {
               style={styles.alertCard}
               onPress={() => {
                 if (!item.isRead) {
-                  notificationService.markAsRead(item._id).catch(() => undefined);
+                  notificationService
+                    .markAsRead(item._id)
+                    .catch(() => undefined);
                   setAlerts((prev) =>
-                    prev.map((a) => (a._id === item._id ? { ...a, isRead: true } : a)),
+                    prev.map((a) =>
+                      a._id === item._id ? { ...a, isRead: true } : a,
+                    ),
                   );
                 }
               }}
@@ -110,23 +123,14 @@ export default function AlertsScreen() {
                 <View style={styles.row}>
                   <Text style={styles.alertTitle}>{item.title}</Text>
 
-                  <Text
-                    style={[
-                      styles.badge,
-                      { color: meta.color },
-                    ]}
-                  >
+                  <Text style={[styles.badge, { color: meta.color }]}>
                     {meta.label}
                   </Text>
                 </View>
 
-                <Text style={styles.description}>
-                  {item.body}
-                </Text>
+                <Text style={styles.description}>{item.body}</Text>
 
-                <Text style={styles.time}>
-                  {timeAgo(item.createdAt)}
-                </Text>
+                <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
               </View>
             </TouchableOpacity>
           );
@@ -136,31 +140,16 @@ export default function AlertsScreen() {
           style={styles.button}
           onPress={() => router.push("/(driver)/emergency-report")}
         >
-          <Ionicons
-            name="warning-outline"
-            size={20}
-            color="#FFFFFF"
-          />
-          <Text style={styles.buttonText}>
-            Report Emergency
-          </Text>
+          <Ionicons name="warning-outline" size={20} color="#FFFFFF" />
+          <Text style={styles.buttonText}>Report Emergency</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.button, styles.secondary]}
           onPress={load}
         >
-          <Ionicons
-            name="refresh"
-            size={20}
-            color={Colors.primary}
-          />
-          <Text
-            style={[
-              styles.buttonText,
-              { color: Colors.primary },
-            ]}
-          >
+          <Ionicons name="refresh" size={20} color={Colors.primary} />
+          <Text style={[styles.buttonText, { color: Colors.primary }]}>
             Refresh Alerts
           </Text>
         </TouchableOpacity>

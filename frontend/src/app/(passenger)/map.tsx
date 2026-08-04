@@ -9,12 +9,11 @@ import {
   View,
 } from "react-native";
 
-import MapView, { Marker, Polyline } from "react-native-maps";
+import LeafletMap from "../../components/common/LeafletMap";
 
 import CustomButton from "../../components/common/CustomButton";
 import CustomInput from "../../components/common/CustomInput";
 import MapBusCard from "../../components/common/MapBusCard";
-
 
 import { useJourney } from "../../hooks/useJourney";
 import { useLiveLocation } from "../../hooks/useLiveLocation";
@@ -94,17 +93,17 @@ export default function PassengerMapScreen() {
   }
 
   function handleBoardBus() {
-  if (!activeBus) return;
+    if (!activeBus) return;
 
-  boardBus(activeBus);
+    boardBus(activeBus);
 
-  Alert.alert("Journey Started", "You can now chat with bus staff.", [
-    {
-      text: "Open Chat",
-      onPress: () => router.push("/(passenger)/chat"),
-    },
-  ]);
-}
+    Alert.alert("Journey Started", "You can now chat with bus staff.", [
+      {
+        text: "Open Chat",
+        onPress: () => router.push("/(passenger)/chat"),
+      },
+    ]);
+  }
 
   function getMarkerDescription(bus: Bus) {
     const eta = bus.mlEtaMinutes ?? bus.etaMinutes;
@@ -112,38 +111,41 @@ export default function PassengerMapScreen() {
     return `${bus.routeName} • ETA ${eta} min`;
   }
 
+  const busMarkers = filteredBuses.map((bus) => ({
+    id: bus.id,
+    lat: bus.currentLocation.latitude,
+    lng: bus.currentLocation.longitude,
+    title: bus.busNumber,
+    description: getMarkerDescription(bus),
+    color: activeBus?.id === bus.id ? "#EF4444" : "#2563EB",
+  }));
+
+  const routePolyline = activeBus
+    ? [
+        { lat: location.latitude, lng: location.longitude },
+        {
+          lat: activeBus.currentLocation.latitude,
+          lng: activeBus.currentLocation.longitude,
+        },
+      ]
+    : undefined;
+
+  function handleMarkerPress(id: string) {
+    const bus = filteredBuses.find((b) => b.id === id);
+    if (bus) setSelectedBus(bus);
+  }
+
   return (
     <View style={styles.container}>
-      
-
-      <MapView
+      <LeafletMap
         style={styles.map}
-        showsUserLocation
-        initialRegion={{
-          latitude: location.latitude,
-          longitude: location.longitude,
-          latitudeDelta: 0.04,
-          longitudeDelta: 0.04,
-        }}
-      >
-        {filteredBuses.map((bus) => (
-          <Marker
-            key={bus.id}
-            coordinate={bus.currentLocation}
-            title={bus.busNumber}
-            description={getMarkerDescription(bus)}
-            onPress={() => setSelectedBus(bus)}
-          />
-        ))}
-
-        {activeBus && (
-          <Polyline
-            coordinates={[location, activeBus.currentLocation]}
-            strokeWidth={4}
-            strokeColor={Colors.primary}
-          />
-        )}
-      </MapView>
+        center={{ lat: location.latitude, lng: location.longitude }}
+        zoom={14}
+        markers={busMarkers}
+        polyline={routePolyline}
+        userLocation={{ lat: location.latitude, lng: location.longitude }}
+        onMarkerPress={handleMarkerPress}
+      />
 
       <View style={styles.bottom}>
         <CustomInput

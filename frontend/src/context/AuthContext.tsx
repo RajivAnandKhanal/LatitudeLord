@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import * as authService from "../services/authService";
 import * as userService from "../services/userService";
@@ -27,7 +27,11 @@ interface AuthContextValue {
 
   loading: boolean;
 
-  login: (email: string, password: string, role: BackendRole) => Promise<AppUser>;
+  login: (
+    email: string,
+    password: string,
+    role: BackendRole,
+  ) => Promise<AppUser>;
 
   register: (payload: {
     name: string;
@@ -53,17 +57,25 @@ const AuthContext = createContext<AuthContextValue>({} as AuthContextValue);
 
 async function buildDriverBuses(): Promise<DriverBus[]> {
   const { items: buses } = await busService.getAllBuses({ driver: "me" });
-  const { items: staff } = await staffService.getMyStaff().catch(() => ({ items: [], total: 0, page: 1, limit: 20 }));
+  const { items: staff } = await staffService
+    .getMyStaff()
+    .catch(() => ({ items: [], total: 0, page: 1, limit: 20 }));
 
   return Promise.all(
     buses.map(async (bus) => {
-      const route = await routeService.getScheduleByBus(bus._id).catch(() => null);
+      const route = await routeService
+        .getScheduleByBus(bus._id)
+        .catch(() => null);
 
       return {
         id: bus._id,
         numberPlate: bus.plateNumber,
         companyBusNumber: bus.busNumber,
-        staff: staff.map((s) => ({ id: s._id, staffName: s.name, staffPhone: s.phone })),
+        staff: staff.map((s) => ({
+          id: s._id,
+          staffName: s.name,
+          staffPhone: s.phone,
+        })),
         schedule: route ? toBusSchedule(route.schedule) : [],
       };
     }),
@@ -71,7 +83,11 @@ async function buildDriverBuses(): Promise<DriverBus[]> {
 }
 
 async function toAppUser(backendUser: BackendUser): Promise<AppUser> {
-  const base = { id: backendUser._id, email: backendUser.email, createdAt: backendUser.createdAt };
+  const base = {
+    id: backendUser._id,
+    email: backendUser.email,
+    createdAt: backendUser.createdAt,
+  };
 
   if (backendUser.role === "passenger") {
     return {
@@ -100,6 +116,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // `updateUser` (and any other function here) is handed out fresh to every
+  // consumer on every render, but a caller that invokes it from inside an
+  // async handler (e.g. right after register()) may still be holding a
+  // reference captured on an earlier render — one where `user` was still
+  // null. Reading from a ref instead of the closed-over `user` state means
+  // updateUser always sees the latest value no matter which render handed
+  // out the function it's running.
+  const userRef = useRef<AppUser | null>(null);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
   useEffect(() => {
     restoreSession();
     setOnSessionExpired(() => {
@@ -114,7 +142,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) return;
 
       const backendUser = await authService.getMe();
-      setUser(await toAppUser(backendUser));
+      const appUser = await toAppUser(backendUser);
+      userRef.current = appUser;
+      setUser(appUser);
       await reconnectSocket();
     } catch {
       await clearTokens();
@@ -126,6 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function login(email: string, password: string, role: BackendRole) {
     const result = await authService.login({ email, password, role });
     const appUser = await toAppUser(result.user);
+    userRef.current = appUser;
     setUser(appUser);
     await reconnectSocket();
     return appUser;
@@ -140,15 +171,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }) {
     const result = await authService.register(payload);
     const appUser = await toAppUser(result.user);
+    userRef.current = appUser;
     setUser(appUser);
     await reconnectSocket();
     return appUser;
   }
 
   async function updateUser(updates: Partial<ProfileUpdate>) {
-    if (!user) return;
+    const currentUser = userRef.current;
+    if (!currentUser) return;
 
-    const isDriver = user.role === "driver";
+    const isDriver = currentUser.role === "driver";
     const payload = isDriver
       ? {
           name: (updates as Partial<DriverUser>).fullName,
@@ -168,7 +201,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
 
     const backendUser = await userService.updateMyProfile(cleaned);
-    setUser(await toAppUser(backendUser));
+    const updatedUser = await toAppUser(backendUser);
+    userRef.current = updatedUser;
+    setUser(updatedUser);
   }
 
   async function changePassword(currentPassword: string, newPassword: string) {
@@ -176,21 +211,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await userService.changePassword(currentPassword, newPassword);
       return { success: true };
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not change password.";
+      const message =
+        err instanceof Error ? err.message : "Could not change password.";
       return { success: false, error: message };
     }
   }
 
   async function logout() {
     await authService.logout().catch(() => undefined);
+    userRef.current = null;
     setUser(null);
     disconnectSocket();
   }
 
   async function refreshDriverBuses() {
-    if (!user || user.role !== "driver") return;
+    const currentUser = userRef.current;
+    if (!currentUser || currentUser.role !== "driver") return;
     const buses = await buildDriverBuses().catch(() => []);
-    setUser({ ...(user as DriverUser), buses });
+    const updatedUser = { ...(currentUser as DriverUser), buses };
+    userRef.current = updatedUser;
+    setUser(updatedUser);
   }
 
   return (

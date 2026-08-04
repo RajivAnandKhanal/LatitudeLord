@@ -11,11 +11,15 @@ import {
 } from "react-native";
 
 import PageHeader from "../../components/common/PageHeader";
+import LeafletMap from "../../components/common/LeafletMap";
 import { useAuth } from "../../hooks/useAuth";
 import { connectSocket } from "../../services/socket";
 import { pingLocation } from "../../services/liveTrackingSocket";
 import * as busLocationService from "../../services/busLocationService";
-import { watchLivePosition, LivePosition } from "../../services/locationService";
+import {
+  watchLivePosition,
+  LivePosition,
+} from "../../services/locationService";
 import { Colors } from "../../theme/colors";
 import { DriverUser } from "../../types/auth";
 
@@ -65,7 +69,9 @@ export default function CurrentTripLiveScreen() {
         });
         stopWatchRef.current = stop;
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not access location.");
+        setError(
+          err instanceof Error ? err.message : "Could not access location.",
+        );
       }
     })();
 
@@ -76,17 +82,21 @@ export default function CurrentTripLiveScreen() {
   }, [bus?.id]);
 
   function confirmEndJourney() {
-    Alert.alert("End Journey?", "This will stop broadcasting your live location.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "End Journey",
-        style: "destructive",
-        onPress: () => {
-          stopWatchRef.current?.();
-          router.replace("/(driver)/dashboard");
+    Alert.alert(
+      "End Journey?",
+      "This will stop broadcasting your live location.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "End Journey",
+          style: "destructive",
+          onPress: () => {
+            stopWatchRef.current?.();
+            router.replace("/(driver)/dashboard");
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   return (
@@ -100,11 +110,15 @@ export default function CurrentTripLiveScreen() {
 
         <View style={styles.statusCard}>
           <Text style={styles.bus}>
-            {bus ? `${bus.companyBusNumber ?? "Bus"} • ${bus.numberPlate}` : "No bus registered"}
+            {bus
+              ? `${bus.companyBusNumber ?? "Bus"} • ${bus.numberPlate}`
+              : "No bus registered"}
           </Text>
 
           <View style={styles.liveRow}>
-            <View style={[styles.liveDot, !broadcasting && styles.liveDotOff]} />
+            <View
+              style={[styles.liveDot, !broadcasting && styles.liveDotOff]}
+            />
             <Text style={styles.liveText}>
               {error
                 ? error
@@ -116,6 +130,29 @@ export default function CurrentTripLiveScreen() {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.section}>Live Map</Text>
+          <View style={styles.mapBox}>
+            {position ? (
+              <LeafletMap
+                center={{ lat: position.latitude, lng: position.longitude }}
+                zoom={16}
+                markers={[
+                  {
+                    id: "self",
+                    lat: position.latitude,
+                    lng: position.longitude,
+                    title: bus?.companyBusNumber ?? "Your bus",
+                    color: "#22C55E",
+                  },
+                ]}
+              />
+            ) : (
+              <Text style={styles.stationName}>Waiting for GPS fix…</Text>
+            )}
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.section}>Current Position</Text>
 
           {position ? (
@@ -123,12 +160,19 @@ export default function CurrentTripLiveScreen() {
               <View style={styles.station}>
                 <Ionicons name="location" size={18} color={Colors.primary} />
                 <Text style={styles.stationName}>
-                  {position.latitude.toFixed(5)}, {position.longitude.toFixed(5)}
+                  {position.latitude.toFixed(5)},{" "}
+                  {position.longitude.toFixed(5)}
                 </Text>
               </View>
               <View style={styles.station}>
-                <Ionicons name="speedometer-outline" size={18} color={Colors.primary} />
-                <Text style={styles.stationName}>{position.speedKmh.toFixed(1)} km/h</Text>
+                <Ionicons
+                  name="speedometer-outline"
+                  size={18}
+                  color={Colors.primary}
+                />
+                <Text style={styles.stationName}>
+                  {position.speedKmh.toFixed(1)} km/h
+                </Text>
               </View>
             </>
           ) : (
@@ -137,15 +181,9 @@ export default function CurrentTripLiveScreen() {
         </View>
 
         <TouchableOpacity style={styles.stopButton} onPress={confirmEndJourney}>
-          <Ionicons
-            name="stop-circle"
-            size={22}
-            color="#fff"
-          />
+          <Ionicons name="stop-circle" size={22} color="#fff" />
 
-          <Text style={styles.stopText}>
-            End Journey
-          </Text>
+          <Text style={styles.stopText}>End Journey</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -153,100 +191,106 @@ export default function CurrentTripLiveScreen() {
 }
 
 const styles = StyleSheet.create({
-  container:{
-    flex:1,
-    backgroundColor:Colors.background
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
   },
 
-  content:{
-    padding:20,
-    paddingTop:56,
-    paddingBottom:40
+  content: {
+    padding: 20,
+    paddingTop: 56,
+    paddingBottom: 40,
   },
 
-  statusCard:{
-    backgroundColor:"#DCFCE7",
-    padding:22,
-    borderRadius:20,
-    marginBottom:20
+  statusCard: {
+    backgroundColor: "#DCFCE7",
+    padding: 22,
+    borderRadius: 20,
+    marginBottom: 20,
   },
 
-  bus:{
-    fontSize:24,
-    fontWeight:"800",
-    color:Colors.text
+  bus: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: Colors.text,
   },
 
-  route:{
-    marginTop:6,
-    color:Colors.textSecondary
+  route: {
+    marginTop: 6,
+    color: Colors.textSecondary,
   },
 
-  liveRow:{
-    flexDirection:"row",
-    alignItems:"center",
-    marginTop:18
+  liveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 18,
   },
 
-  liveDot:{
-    width:12,
-    height:12,
-    borderRadius:6,
-    backgroundColor:"#22C55E",
-    marginRight:10
+  liveDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#22C55E",
+    marginRight: 10,
   },
 
   liveDotOff: {
     backgroundColor: "#F59E0B",
   },
 
-  liveText:{
-    fontWeight:"700",
-    color:"#15803D"
+  liveText: {
+    fontWeight: "700",
+    color: "#15803D",
   },
 
-  card:{
-    backgroundColor:"#fff",
-    borderRadius:20,
-    padding:20,
-    borderWidth:1,
-    borderColor:Colors.border,
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
     marginBottom: 20,
   },
 
-  section:{
-    fontWeight:"800",
-    fontSize:18,
-    marginBottom:16,
-    color:Colors.text
+  section: {
+    fontWeight: "800",
+    fontSize: 18,
+    marginBottom: 16,
+    color: Colors.text,
   },
 
-  station:{
-    flexDirection:"row",
-    alignItems:"center",
-    marginBottom:14
+  mapBox: {
+    height: 220,
+    borderRadius: 14,
+    overflow: "hidden",
   },
 
-  stationName:{
-    marginLeft:12,
-    fontSize:16,
-    color:Colors.text
+  station: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
   },
 
-  stopButton:{
-    marginTop:24,
-    height:56,
-    backgroundColor:"#DC2626",
-    borderRadius:18,
-    justifyContent:"center",
-    alignItems:"center",
-    flexDirection:"row"
+  stationName: {
+    marginLeft: 12,
+    fontSize: 16,
+    color: Colors.text,
   },
 
-  stopText:{
-    color:"#fff",
-    fontWeight:"800",
-    fontSize:17,
-    marginLeft:10
-  }
+  stopButton: {
+    marginTop: 24,
+    height: 56,
+    backgroundColor: "#DC2626",
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+
+  stopText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 17,
+    marginLeft: 10,
+  },
 });

@@ -5,9 +5,10 @@ const chatService = require('../services/chat.service');
 // ── GET /api/v1/chat/:busId/messages ────────────────────────────────────────────
 // Authenticated — passengers and bus staff both read the same room history.
 const getMessages = asyncHandler(async (req, res) => {
-  const messages = await chatService.getMessages(req.params.busId, req.query);
+  // The frontend expects a plain array here, not a paginated envelope.
+  const { items } = await chatService.getMessages(req.params.busId, req.query);
 
-  return res.status(200).json(new ApiResponse(200, messages, 'Messages fetched'));
+  return res.status(200).json(new ApiResponse(200, items, 'Messages fetched'));
 });
 
 // ── POST /api/v1/chat/:busId/messages ───────────────────────────────────────────

@@ -59,9 +59,10 @@ const getActiveJourney = asyncHandler(async (req, res) => {
 
 // ── GET /api/v1/journeys/me ──────────────────────────────────────────────────────
 const getMyJourneys = asyncHandler(async (req, res) => {
-  const journeys = await journeyService.getMyJourneys(req.user._id, req.query);
+  // The frontend expects a plain array here, not a paginated envelope.
+  const { items } = await journeyService.getMyJourneys(req.user._id, req.query);
 
-  return res.status(200).json(new ApiResponse(200, journeys, 'Journey history fetched'));
+  return res.status(200).json(new ApiResponse(200, items, 'Journey history fetched'));
 });
 
 module.exports = {

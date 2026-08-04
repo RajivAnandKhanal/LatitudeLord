@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
   Alert,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,8 +14,21 @@ import {
 import PageHeader from "../../components/common/PageHeader";
 import { Colors } from "../../theme/colors";
 
+const EMERGENCY_NUMBERS = [
+  { label: "Nepal Police", number: "100" },
+  { label: "Traffic Police", number: "103" },
+  { label: "National Women Commission Helpline", number: "1145" },
+  { label: "Child Helpline", number: "1098" },
+];
+
 export default function SupportScreen() {
   const [message, setMessage] = useState("");
+
+  function callNumber(number: string) {
+    Linking.openURL(`tel:${number}`).catch(() =>
+      Alert.alert("Unable to place call", `Please dial ${number} manually.`),
+    );
+  }
 
   function submitTicket() {
     Alert.alert("Ticket Submitted", "Our support team will contact you soon.");
@@ -24,13 +38,34 @@ export default function SupportScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <PageHeader title="Support" subtitle="We're here to help" showBackButton />
+        <PageHeader
+          title="Support"
+          subtitle="We're here to help"
+          showBackButton
+        />
 
         <View style={styles.card}>
           <Ionicons name="call-outline" size={26} color={Colors.primary} />
           <Text style={styles.heading}>24/7 Driver Support</Text>
           <Text style={styles.text}>Phone: +977-9800000000</Text>
           <Text style={styles.text}>Email: support@latitudelord.com</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.heading}>Emergency Helplines</Text>
+          {EMERGENCY_NUMBERS.map((item) => (
+            <TouchableOpacity
+              key={item.number}
+              style={styles.helplineRow}
+              onPress={() => callNumber(item.number)}
+            >
+              <Ionicons name="call" size={20} color="#EF4444" />
+              <View style={styles.helplineBody}>
+                <Text style={styles.helplineLabel}>{item.label}</Text>
+                <Text style={styles.text}>Tap to call {item.number}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
 
         <Text style={styles.label}>Describe your issue</Text>
@@ -77,6 +112,21 @@ const styles = StyleSheet.create({
   text: {
     marginTop: 6,
     color: Colors.textSecondary,
+  },
+  helplineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    paddingVertical: 10,
+  },
+  helplineBody: {
+    marginLeft: 12,
+    flex: 1,
+    alignItems: "flex-start",
+  },
+  helplineLabel: {
+    fontWeight: "700",
+    color: Colors.text,
   },
   label: {
     fontWeight: "700",
