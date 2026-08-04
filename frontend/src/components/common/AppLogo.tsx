@@ -1,7 +1,4 @@
-
-import { StyleSheet, Text, View } from "react-native";
-
-import { Ionicons } from "@expo/vector-icons";
+import { Image, StyleSheet, Text, View } from "react-native";
 
 import { Colors } from "../../theme/colors";
 
@@ -9,7 +6,11 @@ export default function AppLogo() {
   return (
     <View style={styles.container}>
       <View style={styles.logoBox}>
-        <Ionicons name="bus" size={30} color="#FFFFFF" />
+        <Image
+          source={require("../../../assets/images/logo.png")}
+          style={styles.logoImage}
+          resizeMode="contain"
+        />
       </View>
 
       <View>
@@ -37,6 +38,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
 
     marginRight: 14,
+  },
+
+  logoImage: {
+    width: 34,
+    height: 34,
+    tintColor: "#FFFFFF",
   },
 
   title: {

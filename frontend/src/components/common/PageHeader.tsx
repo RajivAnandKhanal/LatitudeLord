@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -50,7 +50,11 @@ export default function PageHeader({
         </TouchableOpacity>
       ) : (
         <View style={styles.logoMark}>
-          <Ionicons name="bus" size={20} color="#FFFFFF" />
+          <Image
+            source={require("../../../assets/images/logo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
       )}
 
@@ -97,6 +101,12 @@ const styles = StyleSheet.create({
 
   titleBlock: {
     flex: 1,
+  },
+
+  logoImage: {
+    width: 22,
+    height: 22,
+    tintColor: "#FFFFFF",
   },
 
   title: {
