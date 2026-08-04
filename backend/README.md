@@ -74,3 +74,11 @@ Store sensitive information in environment variables instead of hardcoding them.
 - Error handling
 - Modular architecture
 - Secure environment configuration
+
+## Contributors
+
+Developed as part of the LatitudeLord project.
+
+Backend contributors:
+- Rajiv Anand Khanal
+- Nawaraj Pathak
