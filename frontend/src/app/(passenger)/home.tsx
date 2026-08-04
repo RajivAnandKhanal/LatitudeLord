@@ -15,12 +15,19 @@ import QuickAction from "../../components/common/QuickAction";
 import SectionHeader from "../../components/common/SectionHeader";
 import { Bus } from "../../mock/buses";
 import { useBusesList } from "../../hooks/useBusesList";
+import { useAuth } from "../../hooks/useAuth";
 import { Colors } from "../../theme/colors";
+import { getTimeBasedGreeting } from "../../utils/greeting";
 
 export default function PassengerHomeScreen() {
   const { buses, loading } = useBusesList();
+  const { user } = useAuth();
   const [station, setStation] = useState("");
   const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
+
+  const firstName =
+    user?.role === "passenger" ? user.fullName?.split(" ")[0] : undefined;
+  const greeting = `${getTimeBasedGreeting()}${firstName ? `, ${firstName}` : ""}`;
 
   const filteredBuses = useMemo(() => {
     const query = station.trim().toLowerCase();
@@ -37,10 +44,7 @@ export default function PassengerHomeScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <View style={styles.content}>
-        <PageHeader
-          title="Passenger Home"
-          subtitle="Nearby buses and support"
-        />
+        <PageHeader title={greeting} subtitle="Nearby buses and support" />
 
         <View style={styles.hero}>
           <Text style={styles.heroTitle}>Find your next bus</Text>
@@ -48,8 +52,6 @@ export default function PassengerHomeScreen() {
             Track buses, chat with staff and get support when needed.
           </Text>
         </View>
-
-
 
         <TextInput
           placeholder="Search station, example: Koteshwor"
@@ -88,20 +90,20 @@ export default function PassengerHomeScreen() {
 
         {!loading &&
           filteredBuses.map((bus) => (
-          <BusCard
-            key={bus.id}
-            bus={bus}
-            showMachineEta
-            onPress={() =>
-              router.push({
-                pathname: "/(passenger)/bus-details",
-                params: {
-                  busId: bus.id,
-                },
-              })
-            }
-          />
-        ))}
+            <BusCard
+              key={bus.id}
+              bus={bus}
+              showMachineEta
+              onPress={() =>
+                router.push({
+                  pathname: "/(passenger)/bus-details",
+                  params: {
+                    busId: bus.id,
+                  },
+                })
+              }
+            />
+          ))}
 
         {!loading && filteredBuses.length === 0 && (
           <Text style={styles.empty}>No buses found for this station.</Text>

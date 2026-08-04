@@ -182,17 +182,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) return;
 
     const isDriver = currentUser.role === "driver";
+    let photoUrl = (updates as Partial<PassengerUser | DriverUser>).photoUrl;
+
+    // A photoUrl coming from the image picker is a local device URI
+    // (file://, content://, ph://, etc.) — it only resolves on this device
+    // during this app session. Saving it as-is is why the photo vanished
+    // after logout/login: the URI was persisted, but nothing was ever
+    // actually uploaded anywhere. Upload it now and swap in the permanent
+    // URL the backend returns before persisting the profile.
+    if (photoUrl && /^(file|content|ph|assets-library):/i.test(photoUrl)) {
+      photoUrl = await userService.uploadAvatar(photoUrl);
+    }
+
     const payload = isDriver
       ? {
           name: (updates as Partial<DriverUser>).fullName,
           phone: (updates as Partial<DriverUser>).phoneNumber,
-          avatar: (updates as Partial<DriverUser>).photoUrl,
+          avatar: photoUrl,
         }
       : {
           name: (updates as Partial<PassengerUser>).fullName,
           gender: (updates as Partial<PassengerUser>).gender,
           healthCondition: (updates as Partial<PassengerUser>).healthCondition,
-          avatar: (updates as Partial<PassengerUser>).photoUrl,
+          avatar: photoUrl,
         };
 
     // Drop undefined keys so we don't overwrite fields the caller didn't touch.
