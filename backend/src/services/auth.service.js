@@ -1,11 +1,18 @@
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const User = require('../models/User.model');
 const Driver = require('../models/Driver.model');
 const ApiError = require('../utils/ApiError');
+const { BCRYPT_ROUNDS } = require('../config/constants');
+const { sendPasswordResetEmail } = require('./email.service');
 const {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } = require('../utils/tokenUtils');
+
+const RESET_CODE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const generateResetCode = () => String(crypto.randomInt(100000, 1000000)); // 6 digits
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -109,4 +116,60 @@ const refreshAccessToken = async (incomingRefreshToken) => {
   return { accessToken, refreshToken };
 };
 
-module.exports = { register, login, logout, refreshAccessToken };
+/**
+ * Starts a password reset: generates a 6-digit code, stores its hash (not
+ * the raw code) with a 15-minute expiry, and emails it to the user.
+ *
+ * Login doesn't ask which account type (passenger/driver) this is, so this
+ * mirrors that: check User first, then Driver, and reset whichever is
+ * found. Always returns the same message either way, so the response
+ * never reveals whether a given email is actually registered.
+ */
+const forgotPassword = async ({ email }) => {
+  let user = await User.findOne({ email });
+  if (!user) user = await Driver.findOne({ email });
+
+  if (user) {
+    const code = generateResetCode();
+    user.passwordResetCodeHash = await bcrypt.hash(code, BCRYPT_ROUNDS);
+    user.passwordResetExpires = new Date(Date.now() + RESET_CODE_TTL_MS);
+    await user.save({ validateBeforeSave: false });
+
+    await sendPasswordResetEmail(user.email, code);
+  }
+
+  return { message: 'If that email is registered, a reset code has been sent.' };
+};
+
+/**
+ * Completes a password reset: verifies the code against its stored hash
+ * and expiry, then sets the new password and invalidates any existing
+ * refresh token (forces re-login everywhere).
+ */
+const resetPassword = async ({ email, code, newPassword }) => {
+  let user = await User.findOne({ email }).select('+passwordResetCodeHash +passwordResetExpires');
+  if (!user) {
+    user = await Driver.findOne({ email }).select('+passwordResetCodeHash +passwordResetExpires');
+  }
+
+  if (!user || !user.passwordResetCodeHash || !user.passwordResetExpires) {
+    throw new ApiError(400, 'Invalid or expired reset code');
+  }
+
+  if (user.passwordResetExpires.getTime() < Date.now()) {
+    throw new ApiError(400, 'Reset code has expired — request a new one');
+  }
+
+  const isMatch = await bcrypt.compare(code, user.passwordResetCodeHash);
+  if (!isMatch) throw new ApiError(400, 'Invalid or expired reset code');
+
+  user.password = newPassword;
+  user.passwordResetCodeHash = null;
+  user.passwordResetExpires = null;
+  user.refreshToken = null;
+  await user.save();
+
+  return { message: 'Password reset successful' };
+};
+
+module.exports = { register, login, logout, refreshAccessToken, forgotPassword, resetPassword };

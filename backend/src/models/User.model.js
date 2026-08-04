@@ -57,6 +57,18 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false,
     },
+    // Set while a forgot-password request is pending; cleared once the
+    // code is used (or a fresh one is requested, replacing it).
+    passwordResetCodeHash: {
+      type: String,
+      select: false,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,

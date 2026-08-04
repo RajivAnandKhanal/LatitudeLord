@@ -33,9 +33,25 @@ const refreshToken = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, result, 'Token refreshed'));
 });
 
+// ── POST /api/v1/auth/forgot-password ────────────────────────────────────────
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  const result = await authService.forgotPassword({ email });
+
+  return res.status(200).json(new ApiResponse(200, null, result.message));
+});
+
+// ── POST /api/v1/auth/reset-password ─────────────────────────────────────────
+const resetPassword = asyncHandler(async (req, res) => {
+  const { email, code, newPassword } = req.body;
+  const result = await authService.resetPassword({ email, code, newPassword });
+
+  return res.status(200).json(new ApiResponse(200, null, result.message));
+});
+
 // ── GET /api/v1/auth/me ────────────────────────────────────────────────────────
 const getMe = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, req.user, 'Authenticated user'));
 });
 
-module.exports = { register, login, logout, refreshToken, getMe };
+module.exports = { register, login, logout, refreshToken, getMe, forgotPassword, resetPassword };

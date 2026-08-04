@@ -78,7 +78,9 @@ export default function LoginScreen() {
       router.replace("/(driver)/dashboard");
     } catch (err) {
       const message =
-        err instanceof ApiRequestError ? err.message : "Invalid email or password.";
+        err instanceof ApiRequestError
+          ? err.message
+          : "Invalid email or password.";
       setStatus({
         type: "error",
         title: "Login failed",
@@ -130,6 +132,13 @@ export default function LoginScreen() {
           onChangeText={setPassword}
         />
 
+        <TouchableOpacity
+          disabled={loading}
+          onPress={() => router.push("/(auth)/forgot-password")}
+        >
+          <Text style={styles.forgotLink}>Forgot password?</Text>
+        </TouchableOpacity>
+
         <CustomButton
           title="Login"
           loading={loading}
@@ -147,7 +156,8 @@ export default function LoginScreen() {
         <View style={styles.demoBox}>
           <Text style={styles.demoTitle}>New here?</Text>
           <Text style={styles.demoText}>
-            Create a passenger or driver account first — there's no demo login until you register.
+            Create a passenger or driver account first — there's no demo login
+            until you register.
           </Text>
         </View>
       </View>
@@ -179,6 +189,15 @@ const styles = StyleSheet.create({
     marginTop: 20,
     color: Colors.primary,
     fontWeight: "600",
+  },
+
+  forgotLink: {
+    textAlign: "right",
+    marginBottom: 20,
+    marginTop: -8,
+    color: Colors.primary,
+    fontWeight: "600",
+    fontSize: 13,
   },
 
   demoBox: {

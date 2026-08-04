@@ -58,6 +58,16 @@ const driverSchema = new mongoose.Schema(
       type: String,
       select: false,
     },
+    passwordResetCodeHash: {
+      type: String,
+      select: false,
+      default: null,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,

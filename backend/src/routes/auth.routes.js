@@ -4,13 +4,31 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const { verifyToken } = require('../middlewares/auth.middleware');
 const { validate } = require('../middlewares/validate.middleware');
-const { registerSchema, loginSchema, refreshTokenSchema } = require('../validators/auth.validator');
+const {
+  registerSchema,
+  loginSchema,
+  refreshTokenSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} = require('../validators/auth.validator');
 const { authLimiter } = require('../middlewares/rateLimiter.middleware');
 
 // Public routes
 router.post('/register', authLimiter, validate(registerSchema), authController.register);
 router.post('/login', authLimiter, validate(loginSchema), authController.login);
 router.post('/refresh-token', validate(refreshTokenSchema), authController.refreshToken);
+router.post(
+  '/forgot-password',
+  authLimiter,
+  validate(forgotPasswordSchema),
+  authController.forgotPassword
+);
+router.post(
+  '/reset-password',
+  authLimiter,
+  validate(resetPasswordSchema),
+  authController.resetPassword
+);
 
 // Protected routes
 router.post('/logout', verifyToken, authController.logout);
