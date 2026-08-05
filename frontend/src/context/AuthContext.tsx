@@ -6,7 +6,7 @@ import * as busService from "../services/busService";
 import * as routeService from "../services/routeService";
 import * as staffService from "../services/staffService";
 import { BackendUser, BackendRole } from "../services/authService";
-import { setOnSessionExpired } from "../services/httpClient";
+import { ApiRequestError, setOnSessionExpired } from "../services/httpClient";
 import { clearTokens, getAccessToken } from "../services/tokenStorage";
 import { reconnectSocket, disconnectSocket } from "../services/socket";
 import { toBusSchedule } from "../adapters/busAdapters";
@@ -146,8 +146,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userRef.current = appUser;
       setUser(appUser);
       await reconnectSocket();
-    } catch {
-      await clearTokens();
+    } catch (err) {
+      // Only a real auth failure (expired/invalid token -> 401/403) means
+      // the saved session is actually invalid. A network/timeout error (no
+      // response at all, e.g. unreachable API host, dev server restarting,
+      // spotty connection in Expo Go) is NOT proof the session is bad — it
+      // just means we couldn't check right now. Wiping the tokens on every
+      // such hiccup was why the app looked "logged out" whenever a request
+      // failed to reach the backend. Keep the tokens in that case so the
+      // next successful check can restore the session normally.
+      const isAuthFailure =
+        err instanceof ApiRequestError &&
+        (err.statusCode === 401 || err.statusCode === 403);
+
+      if (isAuthFailure) {
+        await clearTokens();
+      }
     } finally {
       setLoading(false);
     }

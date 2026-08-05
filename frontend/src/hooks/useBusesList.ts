@@ -5,13 +5,22 @@ import * as locationApi from "../services/busLocationService";
 import * as routeService from "../services/routeService";
 import { toMockBus } from "../adapters/busAdapters";
 import { connectSocket } from "../services/socket";
-import { onLocationUpdate, subscribeToBus, unsubscribeFromBus } from "../services/liveTrackingSocket";
+import {
+  onLocationUpdate,
+  subscribeToBus,
+  unsubscribeFromBus,
+} from "../services/liveTrackingSocket";
 import { Bus } from "../mock/buses";
 
 /**
  * Fetches every active bus (+ its latest location + weekly route) and keeps
  * each one's position live via the `location:update` socket event. This is
  * the real-data replacement for the old static `mock/buses.ts` array.
+ *
+ * Only buses whose driver has started the trip and is actively broadcasting
+ * (i.e. has a location record with isOnline: true) are included — a bus
+ * with no live ping yet, or one whose driver stopped/ended the trip, is
+ * left out entirely rather than shown sitting at (0, 0).
  */
 export function useBusesList() {
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -29,9 +38,18 @@ export function useBusesList() {
 
       const locationByBus = new Map(locations.map((loc) => [loc.bus, loc]));
 
+      // getAllActiveLocations() already only returns isOnline: true rows,
+      // so filtering to buses present in this map is the same as filtering
+      // to buses currently broadcasting a live trip.
+      const broadcastingBuses = backendBuses.filter((bus) =>
+        locationByBus.has(bus._id),
+      );
+
       const mapped = await Promise.all(
-        backendBuses.map(async (bus) => {
-          const route = await routeService.getScheduleByBus(bus._id).catch(() => null);
+        broadcastingBuses.map(async (bus) => {
+          const route = await routeService
+            .getScheduleByBus(bus._id)
+            .catch(() => null);
           return toMockBus(bus, locationByBus.get(bus._id) ?? null, route);
         }),
       );
@@ -65,7 +83,10 @@ export function useBusesList() {
           bus.id === location.bus
             ? {
                 ...bus,
-                currentLocation: { latitude: location.lat, longitude: location.lng },
+                currentLocation: {
+                  latitude: location.lat,
+                  longitude: location.lng,
+                },
                 etaMinutes: location.etaMinutes ?? bus.etaMinutes,
                 mlEtaMinutes: location.etaMinutes ?? bus.mlEtaMinutes,
                 status: location.isOnline ? "On Route" : "Delayed",

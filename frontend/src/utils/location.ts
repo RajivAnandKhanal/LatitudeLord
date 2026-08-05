@@ -21,3 +21,14 @@ export function calculateDistance(
 
   return R * c;
 }
+
+// Average city bus speed used to estimate arrival time from distance.
+const AVERAGE_BUS_SPEED_KMH = 20;
+
+export function calculateEtaMinutes(
+  distanceKm: number,
+  speedKmh: number = AVERAGE_BUS_SPEED_KMH,
+): number {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 0;
+  return Math.round((distanceKm / speedKmh) * 60);
+}

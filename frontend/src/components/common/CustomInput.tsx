@@ -26,6 +26,7 @@ interface Props extends Pick<
   keyboardType?: KeyboardTypeOptions;
   returnKeyType?: ReturnKeyTypeOptions;
   onChangeText?: (value: string) => void;
+  leftIcon?: keyof typeof Ionicons.glyphMap;
 }
 
 export default function CustomInput({
@@ -41,6 +42,7 @@ export default function CustomInput({
   autoCapitalize = "sentences",
   textContentType,
   onChangeText,
+  leftIcon,
 }: Props) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const isPassword = !!secureTextEntry;
@@ -50,9 +52,19 @@ export default function CustomInput({
       {!!label && <Text style={styles.label}>{label}</Text>}
 
       <View style={styles.inputWrap}>
+        {!!leftIcon && (
+          <Ionicons
+            name={leftIcon}
+            size={20}
+            color={Colors.textSecondary}
+            style={styles.leftIcon}
+          />
+        )}
+
         <TextInput
           style={[
             styles.input,
+            !!leftIcon && styles.inputWithLeftIcon,
             isPassword && styles.passwordInput,
             multiline && styles.textArea,
             !editable && styles.inputDisabled,
@@ -114,6 +126,15 @@ const styles = StyleSheet.create({
   },
   passwordInput: {
     paddingRight: 50,
+  },
+  leftIcon: {
+    position: "absolute",
+    left: 16,
+    top: 18,
+    zIndex: 1,
+  },
+  inputWithLeftIcon: {
+    paddingLeft: 46,
   },
   eyeButton: {
     position: "absolute",

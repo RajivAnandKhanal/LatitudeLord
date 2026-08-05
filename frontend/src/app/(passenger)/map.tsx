@@ -14,6 +14,7 @@ import LeafletMap from "../../components/common/LeafletMap";
 import CustomButton from "../../components/common/CustomButton";
 import CustomInput from "../../components/common/CustomInput";
 import MapBusCard from "../../components/common/MapBusCard";
+import PageHeader from "../../components/common/PageHeader";
 
 import { useJourney } from "../../hooks/useJourney";
 import { useLiveLocation } from "../../hooks/useLiveLocation";
@@ -22,7 +23,7 @@ import { useBusesList } from "../../hooks/useBusesList";
 import { Bus } from "../../mock/buses";
 
 import { Colors } from "../../theme/colors";
-import { calculateDistance } from "../../utils/location";
+import { calculateDistance, calculateEtaMinutes } from "../../utils/location";
 
 export default function PassengerMapScreen() {
   const { location, loading } = useLiveLocation();
@@ -55,34 +56,23 @@ export default function PassengerMapScreen() {
     });
   }, [search, buses]);
 
-  const nearestBus = useMemo(() => {
-    if (filteredBuses.length === 0) {
-      return null;
-    }
+  const activeBus = selectedBus;
 
-    let nearest = filteredBuses[0];
+  const distanceKm = useMemo(() => {
+    if (!activeBus) return null;
 
-    let minDistance = Infinity;
+    return calculateDistance(
+      location.latitude,
+      location.longitude,
+      activeBus.currentLocation.latitude,
+      activeBus.currentLocation.longitude,
+    );
+  }, [activeBus, location.latitude, location.longitude]);
 
-    filteredBuses.forEach((bus) => {
-      const distance = calculateDistance(
-        location.latitude,
-        location.longitude,
-        bus.currentLocation.latitude,
-        bus.currentLocation.longitude,
-      );
-
-      if (distance < minDistance) {
-        minDistance = distance;
-
-        nearest = bus;
-      }
-    });
-
-    return nearest;
-  }, [filteredBuses, location.latitude, location.longitude]);
-
-  const activeBus = selectedBus ?? nearestBus;
+  const liveEtaMinutes = useMemo(() => {
+    if (distanceKm == null) return null;
+    return calculateEtaMinutes(distanceKm);
+  }, [distanceKm]);
 
   if (loading || busesLoading) {
     return (
@@ -117,7 +107,7 @@ export default function PassengerMapScreen() {
     lng: bus.currentLocation.longitude,
     title: bus.busNumber,
     description: getMarkerDescription(bus),
-    color: activeBus?.id === bus.id ? "#EF4444" : "#2563EB",
+    color: "#EAB308",
   }));
 
   const routePolyline = activeBus
@@ -147,25 +137,38 @@ export default function PassengerMapScreen() {
         onMarkerPress={handleMarkerPress}
       />
 
+      <View style={styles.header}>
+        <PageHeader title="Track Bus" subtitle="Live GPS Tracking" />
+      </View>
+
       <View style={styles.bottom}>
+        <View style={styles.handle} />
+
         <CustomInput
           placeholder="Search bus, route or station"
           value={search}
           onChangeText={setSearch}
+          leftIcon="search"
         />
+
+        {!activeBus && (
+          <Text style={styles.hint}>
+            Tap a bus on the map or in the list below to see its distance from
+            you and ETA.
+          </Text>
+        )}
 
         {activeBus && (
           <View style={styles.nearest}>
-            <Text style={styles.nearestTitle}>
-              {selectedBus ? "Selected Bus" : "Nearest Bus"}
-            </Text>
+            <Text style={styles.nearestTitle}>Selected Bus</Text>
 
             <Text style={styles.nearestBus}>{activeBus.busNumber}</Text>
 
             <Text style={styles.nearestText}>{activeBus.routeName}</Text>
 
             <Text style={styles.nearestEta}>
-              ETA {activeBus.mlEtaMinutes ?? activeBus.etaMinutes} min
+              ETA {liveEtaMinutes != null ? `${liveEtaMinutes} min` : "—"}
+              {distanceKm != null ? ` • ${distanceKm.toFixed(1)} km away` : ""}
             </Text>
 
             <CustomButton
@@ -175,12 +178,17 @@ export default function PassengerMapScreen() {
           </View>
         )}
 
+        <Text style={styles.sectionTitle}>
+          Nearby Buses{filteredBuses.length ? ` (${filteredBuses.length})` : ""}
+        </Text>
+
         <ScrollView showsVerticalScrollIndicator={false}>
           {filteredBuses.map((bus) => (
             <MapBusCard
               key={bus.id}
               bus={bus}
               showMachineEta
+              selected={activeBus?.id === bus.id}
               onPress={() => setSelectedBus(bus)}
             />
           ))}
@@ -222,11 +230,35 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: 420,
+    maxHeight: 440,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 10,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+
+  handle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    marginBottom: 14,
+  },
+
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: Colors.text,
+    marginTop: 6,
+    marginBottom: 12,
   },
 
   nearest: {
@@ -266,5 +298,13 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     color: Colors.textSecondary,
     fontWeight: "600",
+  },
+
+  hint: {
+    marginTop: 12,
+    marginBottom: 4,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
   },
 });

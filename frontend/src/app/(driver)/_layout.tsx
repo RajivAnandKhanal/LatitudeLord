@@ -46,6 +46,16 @@ export default function DriverLayout() {
       />
 
       <Tabs.Screen
+        name="current-trip-live"
+        options={{
+          title: "Current Journey",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="navigate-circle-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="alerts"
         options={{
           title: "Alerts",
@@ -84,13 +94,6 @@ export default function DriverLayout() {
 
       <Tabs.Screen
         name="journey-details"
-        options={{
-          href: null,
-        }}
-      />
-
-      <Tabs.Screen
-        name="current-trip-live"
         options={{
           href: null,
         }}

@@ -9,22 +9,39 @@ interface Props {
   bus: Bus;
   onPress?: () => void;
   showMachineEta?: boolean;
+  selected?: boolean;
 }
+
+const statusStyles: Record<Bus["status"], { bg: string; color: string }> = {
+  "On Route": { bg: "#DCFCE7", color: "#15803D" },
+  Approaching: { bg: "#DBEAFE", color: Colors.primaryDark },
+  Delayed: { bg: "#FEE2E2", color: "#B91C1C" },
+};
 
 export default function MapBusCard({
   bus,
   onPress,
   showMachineEta = false,
+  selected = false,
 }: Props) {
   const eta =
     showMachineEta && bus.mlEtaMinutes ? bus.mlEtaMinutes : bus.etaMinutes;
   const nextStop = bus.routeStations[0] ?? "Not available";
+  const status = statusStyles[bus.status] ?? statusStyles["On Route"];
 
   return (
-    <TouchableOpacity style={styles.card} activeOpacity={0.9} onPress={onPress}>
+    <TouchableOpacity
+      style={[styles.card, selected && styles.cardSelected]}
+      activeOpacity={0.85}
+      onPress={onPress}
+    >
       <View style={styles.row}>
-        <View style={styles.icon}>
-          <Ionicons name="bus" size={20} color={Colors.primary} />
+        <View style={[styles.icon, selected && styles.iconSelected]}>
+          <Ionicons
+            name="bus"
+            size={20}
+            color={selected ? "#FFFFFF" : Colors.primary}
+          />
         </View>
 
         <View style={styles.main}>
@@ -39,7 +56,12 @@ export default function MapBusCard({
 
       <View style={styles.infoRow}>
         <Text style={styles.info}>Next: {nextStop}</Text>
-        <Text style={styles.status}>{bus.status}</Text>
+
+        <View style={[styles.statusPill, { backgroundColor: status.bg }]}>
+          <Text style={[styles.statusText, { color: status.color }]}>
+            {bus.status}
+          </Text>
+        </View>
       </View>
 
       <Text style={styles.info}>Distance: {bus.distanceKm.toFixed(1)} km</Text>
@@ -55,6 +77,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+
+  cardSelected: {
+    borderColor: Colors.primary,
+    borderWidth: 1.5,
+    shadowOpacity: 0.12,
+    elevation: 2,
   },
 
   row: {
@@ -70,6 +104,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+  },
+
+  iconSelected: {
+    backgroundColor: Colors.primary,
   },
 
   main: {
@@ -103,6 +141,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 8,
   },
 
@@ -111,8 +150,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  status: {
-    color: Colors.success,
+  statusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 100,
+  },
+
+  statusText: {
     fontWeight: "700",
+    fontSize: 12,
   },
 });

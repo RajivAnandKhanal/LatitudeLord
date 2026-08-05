@@ -1,5 +1,4 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -15,6 +14,7 @@ import LeafletMap, {
   LeafletMapHandle,
 } from "../../components/common/LeafletMap";
 import { useAuth } from "../../hooks/useAuth";
+import { useDriverTrip } from "../../hooks/useDriverTrip";
 import { connectSocket } from "../../services/socket";
 import { pingLocation } from "../../services/liveTrackingSocket";
 import * as busLocationService from "../../services/busLocationService";
@@ -29,6 +29,7 @@ export default function CurrentTripLiveScreen() {
   const { user } = useAuth();
   const driver = user?.role === "driver" ? (user as DriverUser) : null;
   const bus = driver?.buses?.[0];
+  const { tripStarted, startTrip, endTrip } = useDriverTrip();
 
   const [position, setPosition] = useState<LivePosition | null>(null);
   const [broadcasting, setBroadcasting] = useState(false);
@@ -37,7 +38,8 @@ export default function CurrentTripLiveScreen() {
   const mapRef = useRef<LeafletMapHandle>(null);
 
   useEffect(() => {
-    if (!bus) return;
+    // Only start watching/broadcasting GPS once a trip is actually active.
+    if (!bus || !tripStarted) return;
 
     let cancelled = false;
 
@@ -87,7 +89,7 @@ export default function CurrentTripLiveScreen() {
       cancelled = true;
       stopWatchRef.current?.();
     };
-  }, [bus?.id]);
+  }, [bus?.id, tripStarted]);
 
   function confirmEndJourney() {
     Alert.alert(
@@ -100,21 +102,53 @@ export default function CurrentTripLiveScreen() {
           style: "destructive",
           onPress: () => {
             stopWatchRef.current?.();
-            router.replace("/(driver)/dashboard");
+            endTrip();
+            setPosition(null);
+            setBroadcasting(false);
           },
         },
       ],
     );
   }
 
+  // No trip in progress yet — offer a way to start one instead of an empty
+  // live-tracking screen. Dashboard, alerts, etc. all stay reachable via the
+  // footer tabs since this is just one tab among them.
+  if (!tripStarted) {
+    return (
+      <ScrollView style={styles.container}>
+        <View style={styles.content}>
+          <PageHeader title="Current Journey" subtitle="No active trip" />
+
+          <View style={styles.emptyCard}>
+            <Ionicons
+              name="navigate-circle-outline"
+              size={48}
+              color={Colors.primary}
+            />
+            <Text style={styles.emptyTitle}>No trip in progress</Text>
+            <Text style={styles.emptyText}>
+              Start a trip to see live journey info here, including your current
+              location on the map.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={() => startTrip()}
+            >
+              <Ionicons name="play-circle" color="#fff" size={22} />
+              <Text style={styles.stopText}>Start Trip</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <PageHeader
-          title="Current Journey"
-          subtitle="Live Trip Status"
-          showBackButton
-        />
+        <PageHeader title="Current Journey" subtitle="Live Trip Status" />
 
         <View style={styles.statusCard}>
           <Text style={styles.bus}>
@@ -143,6 +177,20 @@ export default function CurrentTripLiveScreen() {
           <Text style={styles.section}>Live Map</Text>
           <View style={styles.mapBox}>
             {position ? (
+              // <LeafletMap
+              //   ref={mapRef}
+              //   center={{ lat: position.latitude, lng: position.longitude }}
+              //   zoom={16}
+              //   markers={[
+              //     {
+              //       id: "self",
+              //       lat: position.latitude,
+              //       lng: position.longitude,
+              //       title: bus?.companyBusNumber ?? "Your bus",
+              //       color: "#22C55E",
+              //     },
+              //   ]}
+              // />
               <LeafletMap
                 ref={mapRef}
                 center={{ lat: position.latitude, lng: position.longitude }}
@@ -154,6 +202,7 @@ export default function CurrentTripLiveScreen() {
                     lng: position.longitude,
                     title: bus?.companyBusNumber ?? "Your bus",
                     color: "#22C55E",
+                    pulse: true,
                   },
                 ]}
               />
@@ -303,5 +352,42 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 17,
     marginLeft: 10,
+  },
+
+  emptyCard: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    marginTop: 20,
+  },
+
+  emptyTitle: {
+    marginTop: 14,
+    fontSize: 19,
+    fontWeight: "800",
+    color: Colors.text,
+  },
+
+  emptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
+  startButton: {
+    marginTop: 22,
+    height: 54,
+    minWidth: 180,
+    backgroundColor: Colors.primary,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+    paddingHorizontal: 24,
   },
 });

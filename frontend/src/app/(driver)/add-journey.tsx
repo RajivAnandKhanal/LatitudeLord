@@ -28,15 +28,23 @@ const WEEKDAYS: BackendDay[] = [
   "Sunday",
 ];
 
-export default function AddJourneyScreen() {
+// One editable row per weekday — "from" and "to" station names. Blank rows
+// are simply left out of the saved schedule for that day.
+type DayDraft = { from: string; to: string };
+
+function emptyDrafts(): Record<BackendDay, DayDraft> {
+  return Object.fromEntries(
+    WEEKDAYS.map((day) => [day, { from: "", to: "" }]),
+  ) as Record<BackendDay, DayDraft>;
+}
+
+export default function WeeklyRouteScreen() {
   const { user } = useAuth();
   const driver = user?.role === "driver" ? (user as DriverUser) : null;
   const bus = driver?.buses?.[0];
 
-  const [route, setRoute] = useState("");
-  const [date, setDate] = useState("");
-
-  const [schedule, setSchedule] = useState<BackendDaySchedule[]>([]);
+  const [drafts, setDrafts] =
+    useState<Record<BackendDay, DayDraft>>(emptyDrafts());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -47,56 +55,62 @@ export default function AddJourneyScreen() {
     }
     routeService
       .getScheduleByBus(bus.id)
-      .then((r) => setSchedule(r.schedule))
-      .catch(() => setSchedule([]))
+      .then((r) => {
+        const next = emptyDrafts();
+        r.schedule.forEach((entry) => {
+          const first = entry.stations[0]?.name ?? "";
+          const last = entry.stations[entry.stations.length - 1]?.name ?? "";
+          next[entry.day] = { from: first, to: last };
+        });
+        setDrafts(next);
+      })
+      .catch(() => setDrafts(emptyDrafts()))
       .finally(() => setLoading(false));
   }, [bus?.id]);
 
-  async function saveJourney() {
+  function updateDay(day: BackendDay, field: keyof DayDraft, value: string) {
+    setDrafts((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
+  }
+
+  async function saveWeek() {
     if (!bus) {
-      Alert.alert("No bus registered", "Register a bus from your profile first.");
-      return;
-    }
-    if (!route.trim() || !date.trim()) {
-      Alert.alert("Missing details", "Enter a route and a date.");
-      return;
-    }
-
-    const parsedDate = new Date(date);
-    if (Number.isNaN(parsedDate.getTime())) {
-      Alert.alert("Invalid date", "Use the format YYYY-MM-DD.");
+      Alert.alert(
+        "No bus registered",
+        "Register a bus from your profile first.",
+      );
       return;
     }
 
-    // Backend routes are a recurring weekly schedule (day → stations), not
-    // one-off dated journeys, so this saves the given date's weekday.
-    const day = WEEKDAYS[(parsedDate.getDay() + 6) % 7];
-    const [from, to] = route.split(/ to |→/i).map((s) => s.trim());
-
-    const newEntry: BackendDaySchedule = {
+    // Build the full week's schedule from whichever days have both a
+    // "from" and "to" filled in — days left blank simply have no journey.
+    const schedule: BackendDaySchedule[] = WEEKDAYS.filter(
+      (day) => drafts[day].from.trim() && drafts[day].to.trim(),
+    ).map((day) => ({
       day,
       stations: [
-        { name: from || route.trim(), ...DEFAULT_LOCATION },
+        { name: drafts[day].from.trim(), ...DEFAULT_LOCATION },
         {
-          name: to || "Destination",
+          name: drafts[day].to.trim(),
           lat: DEFAULT_LOCATION.latitude + 0.01,
           lng: DEFAULT_LOCATION.longitude + 0.01,
         },
       ],
-    };
-
-    const merged = [...schedule.filter((entry) => entry.day !== day), newEntry];
+    }));
 
     setSaving(true);
     try {
-      const result = await routeService.setSchedule(bus.id, merged);
-      setSchedule(result.schedule);
-      Alert.alert("Success", `Journey scheduled for ${day}.`);
-      setRoute("");
-      setDate("");
+      const result = await routeService.setSchedule(bus.id, schedule);
+      const next = emptyDrafts();
+      result.schedule.forEach((entry) => {
+        const first = entry.stations[0]?.name ?? "";
+        const last = entry.stations[entry.stations.length - 1]?.name ?? "";
+        next[entry.day] = { from: first, to: last };
+      });
+      setDrafts(next);
+      Alert.alert("Saved", "Your weekly route has been updated.");
     } catch (err) {
       Alert.alert(
-        "Couldn't save journey",
+        "Couldn't save route",
         err instanceof Error ? err.message : "Please try again.",
       );
     } finally {
@@ -104,147 +118,113 @@ export default function AddJourneyScreen() {
     }
   }
 
-  const scheduleByDay = new Map(schedule.map((entry) => [entry.day, entry]));
-
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <PageHeader
-          title="Add Journey"
-          subtitle="Schedule Upcoming Journey"
+          title="Weekly Route"
+          subtitle="Set your route for each day"
           showBackButton
         />
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Route</Text>
-          <TextInput
-            value={route}
-            onChangeText={setRoute}
-            placeholder="Ratnapark to Koteshwor"
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Journey Date</Text>
-          <TextInput
-            value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
-            style={styles.input}
-          />
-
-          <TouchableOpacity
-            style={[styles.button, saving && styles.buttonDisabled]}
-            disabled={saving}
-            onPress={saveJourney}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>
-                Save Journey
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            This Week's Schedule
+        {loading ? (
+          <ActivityIndicator color={Colors.primary} style={{ marginTop: 30 }} />
+        ) : !bus ? (
+          <Text style={styles.emptyText}>
+            Register a bus from your profile first.
           </Text>
+        ) : (
+          <>
+            {WEEKDAYS.map((day) => (
+              <View key={day} style={styles.card}>
+                <Text style={styles.dayLabel}>{day}</Text>
 
-          {loading ? (
-            <ActivityIndicator color={Colors.primary} />
-          ) : (
-            WEEKDAYS.map((day) => {
-              const entry = scheduleByDay.get(day);
-              return (
-                <View key={day} style={styles.dayRow}>
-                  <Text>{day}</Text>
-                  {entry ? (
-                    <Text style={styles.scheduled}>
-                      {entry.stations[0]?.name} → {entry.stations[entry.stations.length - 1]?.name}
-                    </Text>
-                  ) : (
-                    <Text style={styles.pending}>
-                      No Journey Added
-                    </Text>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </View>
+                <Text style={styles.label}>From</Text>
+                <TextInput
+                  value={drafts[day].from}
+                  onChangeText={(v) => updateDay(day, "from", v)}
+                  placeholder="Ratnapark"
+                  style={styles.input}
+                />
+
+                <Text style={styles.label}>To</Text>
+                <TextInput
+                  value={drafts[day].to}
+                  onChangeText={(v) => updateDay(day, "to", v)}
+                  placeholder="Koteshwor"
+                  style={styles.input}
+                />
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={[styles.button, saving && styles.buttonDisabled]}
+              disabled={saving}
+              onPress={saveWeek}
+            >
+              {saving ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Save Weekly Route</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:{flex:1,backgroundColor:Colors.background},
-  content:{padding:20,paddingTop:56,paddingBottom:40},
-  card:{
-    backgroundColor:"#fff",
-    padding:20,
-    borderRadius:20,
-    borderWidth:1,
-    borderColor:Colors.border
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { padding: 20, paddingTop: 56, paddingBottom: 40 },
+  card: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
   },
-  label:{
-    fontWeight:"700",
-    marginTop:14,
-    marginBottom:6,
-    color:Colors.text
+  dayLabel: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: Colors.text,
+    marginBottom: 6,
   },
-  input:{
-    height:52,
-    borderRadius:14,
-    backgroundColor:"#F8FAFC",
-    borderWidth:1,
-    borderColor:Colors.border,
-    paddingHorizontal:14
+  label: {
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 6,
+    color: Colors.text,
   },
-  button:{
-    marginTop:24,
-    height:54,
-    borderRadius:16,
-    backgroundColor:Colors.primary,
-    justifyContent:"center",
-    alignItems:"center"
+  input: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+  },
+  button: {
+    marginTop: 8,
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText:{
-    color:"#fff",
-    fontWeight:"800",
-    fontSize:16
+  buttonText: {
+    color: "#fff",
+    fontWeight: "800",
+    fontSize: 16,
   },
-  infoCard:{
-    marginTop:24,
-    backgroundColor:"#fff",
-    borderRadius:20,
-    padding:20,
-    borderWidth:1,
-    borderColor:Colors.border
-  },
-  infoTitle:{
-    fontSize:18,
-    fontWeight:"800",
-    marginBottom:14
-  },
-  dayRow:{
-    flexDirection:"row",
-    justifyContent:"space-between",
-    paddingVertical:10,
-    borderBottomWidth:1,
-    borderBottomColor:"#eee"
-  },
-  pending:{
-    color:"#EF4444",
-    fontWeight:"600"
-  },
-  scheduled: {
-    color: "#15803D",
-    fontWeight: "700",
+  emptyText: {
+    color: Colors.textSecondary,
+    textAlign: "center",
+    paddingVertical: 8,
   },
 });

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   ScrollView,
   StyleSheet,
@@ -12,6 +12,7 @@ import {
 
 import PageHeader from "../../components/common/PageHeader";
 import { useAuth } from "../../hooks/useAuth";
+import { useDriverTrip } from "../../hooks/useDriverTrip";
 import { Colors } from "../../theme/colors";
 import { DayOfWeek, DriverUser } from "../../types/auth";
 
@@ -30,7 +31,7 @@ export default function DriverDashboardScreen() {
   const driver = user?.role === "driver" ? (user as DriverUser) : null;
   const bus = driver?.buses?.[0];
 
-  const [tripStarted, setTripStarted] = useState(false);
+  const { tripStarted, startTrip, endTrip } = useDriverTrip();
 
   const todayName = dayOrder[new Date().getDay()];
 
@@ -65,10 +66,11 @@ export default function DriverDashboardScreen() {
   }, [bus]);
 
   function handleTripToggle(value: boolean) {
-    setTripStarted(value);
-
     if (value) {
+      startTrip();
       router.push("/(driver)/current-trip-live");
+    } else {
+      endTrip();
     }
   }
 
@@ -88,7 +90,7 @@ export default function DriverDashboardScreen() {
       screen: "/(driver)/emergency-report",
     },
     {
-      title: "Add Journey",
+      title: "Weekly Route",
       icon: "calendar-outline",
       screen: "/(driver)/add-journey",
     },

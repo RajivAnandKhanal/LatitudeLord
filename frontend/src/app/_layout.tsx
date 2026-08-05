@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { AuthProvider } from "../context/AuthContext";
+import { DriverTripProvider } from "../context/DriverTripContext";
 import { JourneyProvider } from "../context/JourneyContext";
 
 export default function RootLayout() {
@@ -9,12 +10,14 @@ export default function RootLayout() {
     <AuthProvider>
       <SafeAreaProvider>
         <JourneyProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: "slide_from_right",
-            }}
-          />
+          <DriverTripProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: "slide_from_right",
+              }}
+            />
+          </DriverTripProvider>
         </JourneyProvider>
       </SafeAreaProvider>
     </AuthProvider>

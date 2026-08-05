@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User.model');
 const Driver = require('../models/Driver.model');
 const ApiError = require('../utils/ApiError');
+const logger = require('../config/logger');
 const { BCRYPT_ROUNDS } = require('../config/constants');
 const { sendPasswordResetEmail } = require('./email.service');
 const {
@@ -135,7 +136,17 @@ const forgotPassword = async ({ email }) => {
     user.passwordResetExpires = new Date(Date.now() + RESET_CODE_TTL_MS);
     await user.save({ validateBeforeSave: false });
 
-    await sendPasswordResetEmail(user.email, code);
+    try {
+      await sendPasswordResetEmail(user.email, code);
+    } catch (err) {
+      // Don't let an email-provider failure (e.g. Resend sandbox rejecting
+      // an unverified recipient) surface as a request error — that would
+      // both leak whether the email is registered and block legitimate
+      // accounts (passenger or driver) from getting the generic response.
+      // The code is already saved, so a retry via this endpoint still works
+      // once delivery is fixed. See server logs for the real cause.
+      logger.error(`Password reset email failed for ${user.email}: ${err.message}`);
+    }
   }
 
   return { message: 'If that email is registered, a reset code has been sent.' };

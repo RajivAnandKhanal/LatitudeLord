@@ -13,6 +13,7 @@ import { useBusesList } from "../../hooks/useBusesList";
 import { Bus } from "../../mock/buses";
 
 import { Colors } from "../../theme/colors";
+import { calculateDistance, calculateEtaMinutes } from "../../utils/location";
 
 export default function GuestMapScreen() {
   const { location, loading } = useLiveLocation();
@@ -21,6 +22,22 @@ export default function GuestMapScreen() {
   const [search, setSearch] = useState("");
 
   const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
+
+  const distanceKm = useMemo(() => {
+    if (!selectedBus) return null;
+
+    return calculateDistance(
+      location.latitude,
+      location.longitude,
+      selectedBus.currentLocation.latitude,
+      selectedBus.currentLocation.longitude,
+    );
+  }, [selectedBus, location.latitude, location.longitude]);
+
+  const liveEtaMinutes = useMemo(() => {
+    if (distanceKm == null) return null;
+    return calculateEtaMinutes(distanceKm);
+  }, [distanceKm]);
 
   const filteredBuses = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -60,8 +77,18 @@ export default function GuestMapScreen() {
     lng: bus.currentLocation.longitude,
     title: bus.busNumber,
     description: getMarkerDescription(bus),
-    color: selectedBus?.id === bus.id ? "#EF4444" : "#2563EB",
+    color: "#EAB308",
   }));
+
+  const routePolyline = selectedBus
+    ? [
+        { lat: location.latitude, lng: location.longitude },
+        {
+          lat: selectedBus.currentLocation.latitude,
+          lng: selectedBus.currentLocation.longitude,
+        },
+      ]
+    : undefined;
 
   function handleMarkerPress(id: string) {
     const bus = filteredBuses.find((b) => b.id === id);
@@ -79,6 +106,8 @@ export default function GuestMapScreen() {
         center={{ lat: location.latitude, lng: location.longitude }}
         zoom={14}
         markers={busMarkers}
+        polyline={routePolyline}
+        userLocation={{ lat: location.latitude, lng: location.longitude }}
         onMarkerPress={handleMarkerPress}
       />
 
@@ -89,13 +118,22 @@ export default function GuestMapScreen() {
           onChangeText={setSearch}
         />
 
+        {!selectedBus && (
+          <Text style={styles.hint}>
+            Tap a bus on the map or in the list below to see its distance from
+            you and ETA.
+          </Text>
+        )}
+
         {selectedBus && (
           <View style={styles.nearest}>
             <Text style={styles.nearestTitle}>Selected Bus</Text>
             <Text style={styles.nearestBus}>{selectedBus.busNumber}</Text>
             <Text style={styles.nearestText}>{selectedBus.routeName}</Text>
             <Text style={styles.nearestEta}>
-              Estimated arrival: {selectedBus.etaMinutes} min (GPS only)
+              Estimated arrival:{" "}
+              {liveEtaMinutes != null ? `${liveEtaMinutes} min` : "—"}
+              {distanceKm != null ? ` • ${distanceKm.toFixed(1)} km away` : ""}
             </Text>
           </View>
         )}
@@ -188,5 +226,13 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     color: Colors.textSecondary,
     fontWeight: "600",
+  },
+
+  hint: {
+    marginTop: 4,
+    marginBottom: 4,
+    color: Colors.textSecondary,
+    fontSize: 13,
+    textAlign: "center",
   },
 });
