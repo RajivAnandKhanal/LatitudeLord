@@ -71,11 +71,18 @@ export default function EmergencyReportScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.button, (!message.trim() || sending) && styles.buttonDisabled]}
+          style={[
+            styles.button,
+            (!message.trim() || sending) && styles.buttonDisabled,
+          ]}
           disabled={!message.trim() || sending}
           onPress={sendReport}
         >
-          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send Emergency Alert</Text>}
+          {sending ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Send Emergency Alert</Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
